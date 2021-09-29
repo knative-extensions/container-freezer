@@ -14,7 +14,6 @@ type Handler struct {
 }
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	h.Logger.Info("handling request")
 	token := r.Header.Get(TokenHeaderKey)
 	if token == "" {
 		w.WriteHeader(http.StatusBadRequest)
@@ -32,10 +31,8 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch m.Action {
 	case "pause":
 		h.Logger.Info("pause request")
-		//h.Freezer.Freeze(r.Context(), resp.Status.User.Extra["authentication.kubernetes.io/pod-uid"][0], "user-container")
 	case "resume":
 		h.Logger.Info("resume request")
-		//h.Thawer.Thaw(r.Context(), resp.Status.User.Extra["authentication.kubernetes.io/pod-uid"][0], "user-container")
 	default:
 		h.Logger.Info("bad request: ", m.Action)
 		w.WriteHeader(http.StatusNotFound)
