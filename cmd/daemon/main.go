@@ -13,7 +13,7 @@ const runtimeTypeContainerd string = "containerd"
 func main() {
 	logger, _ := pkglogging.NewLogger("", "")
 	logger.Info("handling requests to freeze daemon")
-	runtimeType := runtimeTypeContainerd
+	runtimeType := runtimeTypeContainerd // TODO read from envvar
 
 	switch runtimeType {
 	case runtimeTypeContainerd:
