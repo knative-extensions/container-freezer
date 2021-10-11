@@ -1,8 +1,10 @@
 package daemon_test
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -13,23 +15,27 @@ import (
 )
 
 func TestHandler(t *testing.T) {
+	pauseBodyText := fmt.Sprintf(`{ "action": %q }`, "pause")
+	pauseBody := bytes.NewBufferString(pauseBodyText)
+	resumeBodyText := fmt.Sprintf(`{ "action": %q }`, "resume")
+	resumeBody := bytes.NewBufferString(resumeBodyText)
 	tt := []struct {
 		name         string
-		path         string
 		headers      http.Header
 		tokens       map[string]*authv1.TokenReview
 		expectStatus int
 		expectFreeze string
 		expectThaw   string
+		body         *bytes.Buffer
 	}{{
 		name:    "no token",
-		path:    "/pause",
+		body:    pauseBody,
 		headers: http.Header{},
 
 		expectStatus: 400,
 	}, {
 		name: "token not valid",
-		path: "/pause",
+		body: pauseBody,
 		tokens: map[string]*authv1.TokenReview{
 			"THE_TOKEN": {
 				Status: authv1.TokenReviewStatus{
@@ -44,7 +50,7 @@ func TestHandler(t *testing.T) {
 		expectStatus: 403,
 	}, {
 		name: "token validation fails",
-		path: "/pause",
+		body: pauseBody,
 		headers: http.Header{
 			daemon.TokenHeaderKey: []string{"THE_TOKEN"},
 		},
@@ -52,7 +58,7 @@ func TestHandler(t *testing.T) {
 		expectStatus: 500,
 	}, {
 		name: "valid token, freeze",
-		path: "/pause",
+		body: pauseBody,
 		tokens: map[string]*authv1.TokenReview{
 			"THE_TOKEN": {
 				Status: authv1.TokenReviewStatus{
@@ -73,7 +79,7 @@ func TestHandler(t *testing.T) {
 		expectFreeze: "the-pod-name",
 	}, {
 		name: "valid token, thaw",
-		path: "/resume",
+		body: resumeBody,
 		tokens: map[string]*authv1.TokenReview{
 			"THE_TOKEN": {
 				Status: authv1.TokenReviewStatus{
@@ -119,7 +125,7 @@ func TestHandler(t *testing.T) {
 			}
 
 			resp := httptest.NewRecorder()
-			req := httptest.NewRequest("POST", test.path, nil)
+			req := httptest.NewRequest("POST", "/", test.body)
 			req.Header = test.headers
 			handler.ServeHTTP(resp, req)
 
