@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: freeze-daemon-containerd
+  namespace: knative-serving
+spec:
+  selector:
+    matchLabels:
+      name: freeze-daemon
+  template:
+    metadata:
+      labels:
+        name: freeze-daemon
+    spec:
+      serviceAccountName: freeze-tokenreview # TODO: swap for account with just tokenreview
+      nodeSelector:
+        knative.dev/container-runtime: containerd
+      containers:
+        - name: daemon
+          securityContext:
+            runAsUser: 0
+          image: ko://knative.dev/container-freezer/cmd/daemon
+          env:
+            - name: RUNTIME_TYPE
+              value: containerd
+          ports:
+            - containerPort: 8080
+              hostPort: 9696
+          volumeMounts:
+            - name: containerd-socket
+              mountPath: /var/run/containerd/containerd.sock
+      volumes:
+        - name: containerd-socket
+          hostPath:
+            path: /var/run/containerd/containerd.sock
+            type: Socket
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: freeze-service
+  namespace: knative-serving
+  labels:
+    name: freeze-service
+spec:
+  ports:
+    - port: 9696
+      targetPort: 9696
+      protocol: TCP
+  selector:
+    name: freeze-daemon
