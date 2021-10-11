@@ -9,6 +9,7 @@ import (
 
 	authv1 "k8s.io/api/authentication/v1"
 	"knative.dev/container-freezer/pkg/daemon"
+	ltesting "knative.dev/pkg/logging/testing"
 )
 
 func TestHandler(t *testing.T) {
@@ -22,13 +23,13 @@ func TestHandler(t *testing.T) {
 		expectThaw   string
 	}{{
 		name:    "no token",
-		path:    "/freeze",
+		path:    "/pause",
 		headers: http.Header{},
 
 		expectStatus: 400,
 	}, {
 		name: "token not valid",
-		path: "/freeze",
+		path: "/pause",
 		tokens: map[string]*authv1.TokenReview{
 			"THE_TOKEN": {
 				Status: authv1.TokenReviewStatus{
@@ -43,7 +44,7 @@ func TestHandler(t *testing.T) {
 		expectStatus: 403,
 	}, {
 		name: "token validation fails",
-		path: "/freeze",
+		path: "/pause",
 		headers: http.Header{
 			daemon.TokenHeaderKey: []string{"THE_TOKEN"},
 		},
@@ -51,7 +52,7 @@ func TestHandler(t *testing.T) {
 		expectStatus: 500,
 	}, {
 		name: "valid token, freeze",
-		path: "/freeze",
+		path: "/pause",
 		tokens: map[string]*authv1.TokenReview{
 			"THE_TOKEN": {
 				Status: authv1.TokenReviewStatus{
@@ -72,7 +73,7 @@ func TestHandler(t *testing.T) {
 		expectFreeze: "the-pod-name",
 	}, {
 		name: "valid token, thaw",
-		path: "/thaw",
+		path: "/resume",
 		tokens: map[string]*authv1.TokenReview{
 			"THE_TOKEN": {
 				Status: authv1.TokenReviewStatus{
@@ -95,8 +96,10 @@ func TestHandler(t *testing.T) {
 
 	for _, test := range tt {
 		t.Run(test.name, func(t *testing.T) {
+			logger := ltesting.TestLogger(t)
 			var thawed, froze string
 			handler := daemon.Handler{
+				Logger: logger,
 				Validator: daemon.TokenValidatorFunc(func(ctx context.Context, token string) (*authv1.TokenReview, error) {
 					resp, ok := test.tokens[token]
 					if !ok {
