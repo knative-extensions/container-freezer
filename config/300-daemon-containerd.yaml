@@ -12,7 +12,7 @@ spec:
       labels:
         name: freeze-daemon
     spec:
-      serviceAccountName: freeze-tokenreview # TODO: swap for account with just tokenreview
+      serviceAccountName: freeze-tokenreview
       nodeSelector:
         knative.dev/container-runtime: containerd
       containers:
