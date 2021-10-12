@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: freeze-service
+  namespace: knative-serving
+  labels:
+    name: freeze-service
+spec:
+  ports:
+    - port: 9696
+      targetPort: 9696
+      protocol: TCP
+  selector:
+    name: freeze-daemon

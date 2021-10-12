@@ -19,7 +19,7 @@ spec:
         - name: daemon
           securityContext:
             runAsUser: 0
-          image: ko://github.com/julz/freeze-proxy/cmd/daemon
+          image: ko://knative.dev/container-freezer/cmd/daemon
           env:
             - name: RUNTIME_TYPE
               value: docker
