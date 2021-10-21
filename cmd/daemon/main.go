@@ -18,8 +18,8 @@ import (
 const runtimeTypeContainerd string = "containerd"
 
 func main() {
-	logger, _ := pkglogging.NewLogger("", "")
-	runtimeType := runtimeTypeContainerd // TODO read from envvar
+	logger, _ := pkglogging.NewLogger("", "") // TODO read from envvar
+	runtimeType := runtimeTypeContainerd      // TODO read from envvar
 
 	config, err := rest.InClusterConfig()
 	if err != nil {
@@ -44,7 +44,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	http.ListenAndServe(":9696", &daemon.Handler{
+	http.ListenAndServe(":8080", &daemon.Handler{
 		Freezer: freezeThaw,
 		Thawer:  freezeThaw,
 		Logger:  logger,
