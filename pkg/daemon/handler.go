@@ -58,7 +58,6 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	var m messageBody
 	decoder := json.NewDecoder(r.Body)
-	decoder.DisallowUnknownFields()
 	err = decoder.Decode(&m)
 	if err != nil {
 		http.Error(w, "error decoding", http.StatusBadRequest)
