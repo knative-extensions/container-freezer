@@ -17,8 +17,14 @@
 source $(dirname $0)/../vendor/knative.dev/hack/release.sh
 
 function build_release() {
-  # TODO
-  echo "building release..."
+  local YAML_LIST="$(mktemp)"
+  export TAG
+  $(dirname $0)/generate-yamls.sh "${REPO_ROOT_DIR}" "${YAML_LIST}"
+  ARTIFACTS_TO_PUBLISH=$(cat "${YAML_LIST}" | tr '\n' ' ')
+  if (( ! PUBLISH_RELEASE )); then
+    # Copy the generated YAML files to the repo root dir if not publishing.
+    cp ${ARTIFACTS_TO_PUBLISH} ${REPO_ROOT_DIR}
+  fi
 }
 
 main $@
