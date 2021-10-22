@@ -47,7 +47,7 @@ By default, Knative does not enable the freezing capability. We can enable it by
 
 ``` yaml
 data:
-  concurrency-state-endpoint: "http://freeze-service.knative-serving.svc.cluster.local:9696"
+  concurrency-state-endpoint: "http://$HOST_IP:9696"
 ```
 
 ## Sample application
