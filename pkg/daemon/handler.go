@@ -3,7 +3,6 @@ package daemon
 import (
 	"context"
 	"encoding/json"
-	"io"
 	"net/http"
 
 	"go.uber.org/zap"
@@ -58,13 +57,9 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var m messageBody
-	b, err := io.ReadAll(r.Body)
-	defer r.Body.Close()
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-	}
-	if err := json.Unmarshal(b, &m); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	if err := json.NewDecoder(r.Body).Decode(&m); err != nil {
+		h.Logger.Error("Unable to decode message body")
+		w.WriteHeader(http.StatusBadRequest)
 	}
 
 	switch m.Action {
