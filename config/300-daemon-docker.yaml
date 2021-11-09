@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: freeze-daemon-docker
+  namespace: knative-serving
+spec:
+  selector:
+    matchLabels:
+      name: freeze-daemon
+  template:
+    metadata:
+      labels:
+        name: freeze-daemon
+    spec:
+      serviceAccountName: freeze-tokenreview
+      nodeSelector:
+        knative.dev/container-runtime: docker
+      containers:
+        - name: daemon
+          securityContext:
+            runAsUser: 0
+          image: ko://knative.dev/container-freezer/cmd/daemon
+          env:
+            - name: RUNTIME_TYPE
+              value: docker
+          ports:
+            - containerPort: 8080
+              hostPort: 9696
+          volumeMounts:
+            - name: docker-socket
+              mountPath: /var/run/docker.sock
+      volumes:
+        - name: docker-socket
+          hostPath:
+            path: /var/run/docker.sock
+            type: Socket
