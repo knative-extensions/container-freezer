@@ -58,7 +58,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	var m messageBody
 	if err := json.NewDecoder(r.Body).Decode(&m); err != nil {
-		h.Logger.Error("Unable to decode message body")
+		h.Logger.Error("Unable to decode message body: %v", err)
 		w.WriteHeader(http.StatusBadRequest)
 	}
 
