@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"net/http"
+	"os"
 
 	authv1 "k8s.io/api/authentication/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -12,14 +13,18 @@ import (
 
 	"knative.dev/container-freezer/pkg/daemon"
 	"knative.dev/container-freezer/pkg/freeze/containerd"
+	"knative.dev/container-freezer/pkg/freeze/docker"
 	pkglogging "knative.dev/pkg/logging"
 )
 
-const runtimeTypeContainerd string = "containerd"
+const (
+	runtimeTypeContainerd string = "containerd"
+	runtimeTypeDocker     string = "docker"
+)
 
 func main() {
 	logger, _ := pkglogging.NewLogger("", "") // TODO read from envvar
-	runtimeType := runtimeTypeContainerd      // TODO read from envvar
+	runtimeType := os.Getenv("RUNTIME_TYPE")
 
 	config, err := rest.InClusterConfig()
 	if err != nil {
@@ -40,7 +45,14 @@ func main() {
 			log.Fatalf("unable to create containerd cri: %v", err)
 		}
 		freezeThaw = containerd.New(ctrd)
-		// TODO support docker, crio
+	case runtimeTypeDocker:
+		logger.Info("creating new docker freezeThawer")
+		dkr, err := docker.NewCRI()
+		if err != nil {
+			log.Fatalf("unable to create docker cri: %v", err)
+		}
+		freezeThaw = docker.New(dkr)
+		// TODO support crio
 	default:
 		log.Fatal("unrecognised runtimeType", runtimeType)
 	}
