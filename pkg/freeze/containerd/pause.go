@@ -40,46 +40,49 @@ func New() (*Containerd, error) {
 }
 
 // Freeze freezes the user container via the freezer cgroup.
-func (f *Containerd) Freeze(ctx context.Context, podName, containerName string) error {
+func (f *Containerd) Freeze(ctx context.Context, podName string) error {
 	ctrd, err := containerd.NewWithConn(f.conn)
 	if err != nil {
 		return err
 	}
 
-	containerID, err := lookupContainerID(ctx, f.conn, podName, containerName)
+	containerID, err := lookupContainerID(ctx, f.conn, podName)
 	if err != nil {
 		return err
 	}
 
 	ctx = namespaces.WithNamespace(ctx, "k8s.io")
-	if _, err := ctrd.TaskService().Pause(ctx, &tasks.PauseTaskRequest{ContainerID: containerID}); err != nil {
-		return err
+	for _, c := range containerID {
+		if _, err := ctrd.TaskService().Pause(ctx, &tasks.PauseTaskRequest{ContainerID: c}); err != nil {
+			return err
+		}
 	}
 
 	return nil
 }
 
 // Thaw thats a container which was freezed via the Freeze method.
-func (f *Containerd) Thaw(ctx context.Context, podName, containerName string) error {
+func (f *Containerd) Thaw(ctx context.Context, podName string) error {
 	ctrd, err := containerd.NewWithConn(f.conn)
 	if err != nil {
 		return err
 	}
 
-	containerID, err := lookupContainerID(ctx, f.conn, podName, containerName)
+	containerID, err := lookupContainerID(ctx, f.conn, podName)
 	if err != nil {
 		return err
 	}
 
 	ctx = namespaces.WithNamespace(ctx, "k8s.io")
-	if _, err := ctrd.TaskService().Resume(ctx, &tasks.ResumeTaskRequest{ContainerID: containerID}); err != nil {
-		return err
+	for _, c := range containerID {
+		if _, err := ctrd.TaskService().Resume(ctx, &tasks.ResumeTaskRequest{ContainerID: c}); err != nil {
+			return err
+		}
 	}
-
 	return nil
 }
 
-func lookupContainerID(ctx context.Context, conn *grpc.ClientConn, podUID, containerName string) (string, error) {
+func lookupContainerID(ctx context.Context, conn *grpc.ClientConn, podUID string) ([]string, error) {
 	client := cri.NewRuntimeServiceClient(conn)
 	pods, err := client.ListPodSandbox(context.Background(), &cri.ListPodSandboxRequest{
 		Filter: &cri.PodSandboxFilter{
@@ -89,27 +92,31 @@ func lookupContainerID(ctx context.Context, conn *grpc.ClientConn, podUID, conta
 		},
 	})
 	if err != nil {
-		return "", err
+		return []string{}, err
 	}
 
 	if len(pods.Items) == 0 {
-		return "", fmt.Errorf("pod %s not found", podUID)
+		return []string{}, fmt.Errorf("pod %s not found", podUID)
 	}
 	pod := pods.Items[0]
 
 	ctrs, err := client.ListContainers(ctx, &cri.ListContainersRequest{Filter: &cri.ContainerFilter{
 		PodSandboxId: pod.Id,
-		LabelSelector: map[string]string{
-			"io.kubernetes.container.name": containerName,
-		},
 	}})
 	if err != nil {
-		return "", err
+		return []string{}, err
 	}
 
-	if len(ctrs.Containers) == 0 {
-		return "", fmt.Errorf("container %q in pod %q not found", containerName, podUID)
+	var ids []string
+	for _, c := range ctrs.Containers {
+		if c.GetMetadata().GetName() != "queue-proxy" {
+			ids = append(ids, c.Id)
+		}
 	}
 
-	return ctrs.Containers[0].Id, nil
+	if len(ids) == 0 {
+		return []string{}, fmt.Errorf("no non queue-proxy containers found in pod %q", podUID)
+	}
+
+	return ids, nil
 }
