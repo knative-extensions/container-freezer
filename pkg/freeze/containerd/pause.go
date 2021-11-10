@@ -46,7 +46,8 @@ func (f *Containerd) Freeze(ctx context.Context, podName string) error {
 		return err
 	}
 
-	containerIDs, err := lookupContainerIDs(ctx, f.conn, podName)
+	containers, err := f.GetContainers(ctx, f.conn, podName)
+	containerIDs, err := lookupContainerIDs(containers)
 	if err != nil {
 		return err
 	}
@@ -68,7 +69,8 @@ func (f *Containerd) Thaw(ctx context.Context, podName string) error {
 		return err
 	}
 
-	containerIDs, err := lookupContainerIDs(ctx, f.conn, podName)
+	containers, err := f.GetContainers(ctx, f.conn, podName)
+	containerIDs, err := lookupContainerIDs(containers)
 	if err != nil {
 		return err
 	}
@@ -82,7 +84,7 @@ func (f *Containerd) Thaw(ctx context.Context, podName string) error {
 	return nil
 }
 
-func lookupContainerIDs(ctx context.Context, conn *grpc.ClientConn, podUID string) ([]string, error) {
+func (f *Containerd) GetContainers(ctx context.Context, conn *grpc.ClientConn, podUID string) (*cri.ListContainersResponse, error) {
 	client := cri.NewRuntimeServiceClient(conn)
 	pods, err := client.ListPodSandbox(context.Background(), &cri.ListPodSandboxRequest{
 		Filter: &cri.PodSandboxFilter{
@@ -107,6 +109,10 @@ func lookupContainerIDs(ctx context.Context, conn *grpc.ClientConn, podUID strin
 		return nil, err
 	}
 
+	return ctrs, nil
+}
+
+func lookupContainerIDs(ctrs *cri.ListContainersResponse) ([]string, error) {
 	ids := make([]string, 0, len(ctrs.Containers)-1)
 	for _, c := range ctrs.Containers {
 		if c.GetMetadata().GetName() != "queue-proxy" {
@@ -115,7 +121,7 @@ func lookupContainerIDs(ctx context.Context, conn *grpc.ClientConn, podUID strin
 	}
 
 	if len(ids) == 0 {
-		return nil, fmt.Errorf("no non queue-proxy containers found in pod %q", podUID)
+		return nil, fmt.Errorf("no non queue-proxy containers found in pod")
 	}
 
 	return ids, nil

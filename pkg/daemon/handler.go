@@ -6,7 +6,9 @@ import (
 	"net/http"
 
 	"go.uber.org/zap"
+	"google.golang.org/grpc"
 	authv1 "k8s.io/api/authentication/v1"
+	cri "k8s.io/cri-api/pkg/apis/runtime/v1alpha2"
 )
 
 const TokenHeaderKey = "Token"
@@ -23,9 +25,14 @@ type Thawer interface {
 	Thaw(ctx context.Context, podName string) error
 }
 
+type Containers interface {
+	GetContainers(ctx context.Context, conn *grpc.ClientConn, podUID string) (*cri.ListContainersResponse, error)
+}
+
 type FreezeThawer interface {
 	Freezer
 	Thawer
+	Containers
 }
 
 type Handler struct {
