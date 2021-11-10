@@ -46,13 +46,13 @@ func (f *Containerd) Freeze(ctx context.Context, podName string) error {
 		return err
 	}
 
-	containerID, err := lookupContainerID(ctx, f.conn, podName)
+	containerIDs, err := lookupContainerIDs(ctx, f.conn, podName)
 	if err != nil {
 		return err
 	}
 
 	ctx = namespaces.WithNamespace(ctx, "k8s.io")
-	for _, c := range containerID {
+	for _, c := range containerIDs {
 		if _, err := ctrd.TaskService().Pause(ctx, &tasks.PauseTaskRequest{ContainerID: c}); err != nil {
 			return err
 		}
@@ -68,13 +68,13 @@ func (f *Containerd) Thaw(ctx context.Context, podName string) error {
 		return err
 	}
 
-	containerID, err := lookupContainerID(ctx, f.conn, podName)
+	containerIDs, err := lookupContainerIDs(ctx, f.conn, podName)
 	if err != nil {
 		return err
 	}
 
 	ctx = namespaces.WithNamespace(ctx, "k8s.io")
-	for _, c := range containerID {
+	for _, c := range containerIDs {
 		if _, err := ctrd.TaskService().Resume(ctx, &tasks.ResumeTaskRequest{ContainerID: c}); err != nil {
 			return err
 		}
@@ -82,7 +82,7 @@ func (f *Containerd) Thaw(ctx context.Context, podName string) error {
 	return nil
 }
 
-func lookupContainerID(ctx context.Context, conn *grpc.ClientConn, podUID string) ([]string, error) {
+func lookupContainerIDs(ctx context.Context, conn *grpc.ClientConn, podUID string) ([]string, error) {
 	client := cri.NewRuntimeServiceClient(conn)
 	pods, err := client.ListPodSandbox(context.Background(), &cri.ListPodSandboxRequest{
 		Filter: &cri.PodSandboxFilter{
@@ -92,11 +92,11 @@ func lookupContainerID(ctx context.Context, conn *grpc.ClientConn, podUID string
 		},
 	})
 	if err != nil {
-		return []string{}, err
+		return nil, err
 	}
 
 	if len(pods.Items) == 0 {
-		return []string{}, fmt.Errorf("pod %s not found", podUID)
+		return nil, fmt.Errorf("pod %s not found", podUID)
 	}
 	pod := pods.Items[0]
 
@@ -104,10 +104,10 @@ func lookupContainerID(ctx context.Context, conn *grpc.ClientConn, podUID string
 		PodSandboxId: pod.Id,
 	}})
 	if err != nil {
-		return []string{}, err
+		return nil, err
 	}
 
-	var ids []string
+	ids := make([]string, 0, len(ctrs.Containers)-1)
 	for _, c := range ctrs.Containers {
 		if c.GetMetadata().GetName() != "queue-proxy" {
 			ids = append(ids, c.Id)
@@ -115,7 +115,7 @@ func lookupContainerID(ctx context.Context, conn *grpc.ClientConn, podUID string
 	}
 
 	if len(ids) == 0 {
-		return []string{}, fmt.Errorf("no non queue-proxy containers found in pod %q", podUID)
+		return nil, fmt.Errorf("no non queue-proxy containers found in pod %q", podUID)
 	}
 
 	return ids, nil
