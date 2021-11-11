@@ -2,46 +2,51 @@ package containerd
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
+	"github.com/containerd/containerd"
+	types1 "github.com/gogo/protobuf/types"
 	"google.golang.org/grpc"
 	cri "k8s.io/cri-api/pkg/apis/runtime/v1alpha2"
+	"knative.dev/container-freezer/pkg/daemon"
 )
 
-type FakeContainerd struct {
-	conn *grpc.ClientConn
-}
+var (
+	containers []*cri.Container
+	results    []string
+)
 
-var containers []*cri.Container
+var (
+	queueProxy     = cri.Container{Id: "queueproxy", Metadata: &cri.ContainerMetadata{Name: "queue-proxy"}}
+	userContainer  = cri.Container{Id: "usercontainer", Metadata: &cri.ContainerMetadata{Name: "user-container"}}
+	userContainer2 = cri.Container{Id: "usercontainer2", Metadata: &cri.ContainerMetadata{Name: "user-container2"}}
+)
 
-func (f *FakeContainerd) GetContainers(ctx context.Context, conn *grpc.ClientConn, podUID string) (*cri.ListContainersResponse, error) {
+type FakeContainerdCri struct{}
+
+func (c *FakeContainerdCri) List(ctx context.Context, conn *grpc.ClientConn, podUID string) (*cri.ListContainersResponse, error) {
 	listContainers := &cri.ListContainersResponse{
 		Containers: containers,
 	}
 	return listContainers, nil
 }
 
-func TestLookupContainerIDs(t *testing.T) {
+func (c *FakeContainerdCri) Pause(ctx context.Context, ctrd *containerd.Client, containerList []string) error {
+	check := compareContainerLists(containerList, results)
+	if !check {
+		return fmt.Errorf("paused container list did not match")
+	}
+	return nil
+}
 
-	queueProxy := cri.Container{
-		Id: "queueproxy",
-		Metadata: &cri.ContainerMetadata{
-			Name: "queue-proxy",
-		},
-	}
-	userContainer := cri.Container{
-		Id: "usercontainer",
-		Metadata: &cri.ContainerMetadata{
-			Name: "user-container",
-		},
-	}
-	userContainer2 := cri.Container{
-		Id: "usercontainer2",
-		Metadata: &cri.ContainerMetadata{
-			Name: "user-container2",
-		},
-	}
+func (c *FakeContainerdCri) Resume(ctx context.Context, ctrd *containerd.Client, containerList string) (*types1.Empty, error) {
+	return nil, nil
+}
 
+func TestContainerPause(t *testing.T) {
+	var fakeFreezeThawer daemon.FreezeThawer
+	var err error
 	tests := []struct {
 		containers []*cri.Container
 		results    []string
@@ -51,20 +56,30 @@ func TestLookupContainerIDs(t *testing.T) {
 	}, {
 		containers: []*cri.Container{&queueProxy, &userContainer, &userContainer2},
 		results:    []string{"usercontainer", "usercontainer2"},
-	}, {
-		containers: []*cri.Container{&queueProxy},
-		results:    []string{},
 	}}
-
 	for _, c := range tests {
 		containers = c.containers
-		f := FakeContainerd{conn: nil}
-		cntr, _ := f.GetContainers(nil, nil, "")
-		ids, _ := lookupContainerIDs(cntr)
+		results = c.results
 
-		if !compareContainerLists(ids, c.results) {
-			t.Errorf("expected %s, got %s", ids, c.results)
+		fakeFreezeThawer, err = New(&FakeContainerdCri{})
+		if err != nil {
+			t.Errorf("unable to create freezeThawer: %v", err)
 		}
+		if err := fakeFreezeThawer.Freeze(nil, ""); err != nil {
+			t.Errorf("unable to freeze containers: %v", err)
+		}
+	}
+}
+
+func TestNoQueueProxyPause(t *testing.T) {
+	containers = []*cri.Container{&queueProxy}
+	results = []string{}
+
+	f := FakeContainerdCri{}
+	cntr, _ := f.List(nil, nil, "")
+	ids, _ := lookupContainerIDs(cntr)
+	if !compareContainerLists(ids, results) {
+		t.Errorf("expected %s, got %s", ids, results)
 	}
 }
 
