@@ -9,7 +9,6 @@ import (
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/api/services/tasks/v1"
 	"github.com/containerd/containerd/namespaces"
-	types1 "github.com/gogo/protobuf/types"
 	"google.golang.org/grpc"
 
 	cri "k8s.io/cri-api/pkg/apis/runtime/v1alpha2"
@@ -20,7 +19,7 @@ const defaultContainerdAddress = "/var/run/containerd/containerd.sock"
 type CRI interface {
 	List(ctx context.Context, conn *grpc.ClientConn, podUID string) (*cri.ListContainersResponse, error)
 	Pause(ctx context.Context, ctrd *containerd.Client, containerList []string) error
-	Resume(ctx context.Context, ctrd *containerd.Client, container string) (*types1.Empty, error)
+	Resume(ctx context.Context, ctrd *containerd.Client, containerList []string) error
 }
 
 // Containerd freezes and unfreezes containers via containerd.
@@ -80,11 +79,8 @@ func (f *Containerd) Thaw(ctx context.Context, podName string) error {
 		return err
 	}
 
-	ctx = namespaces.WithNamespace(ctx, "k8s.io")
-	for _, c := range containerIDs {
-		if _, err := f.containerd.Resume(ctx, ctrd, c); err != nil {
-			return err
-		}
+	if err := f.containerd.Resume(ctx, ctrd, containerIDs); err != nil {
+		return err
 	}
 	return nil
 }
@@ -132,8 +128,14 @@ func (c *ContainerdCri) Pause(ctx context.Context, ctrd *containerd.Client, cont
 }
 
 // Resume performs a resume action on a specific container
-func (c *ContainerdCri) Resume(ctx context.Context, ctrd *containerd.Client, container string) (*types1.Empty, error) {
-	return ctrd.TaskService().Resume(ctx, &tasks.ResumeTaskRequest{ContainerID: container})
+func (c *ContainerdCri) Resume(ctx context.Context, ctrd *containerd.Client, containerList []string) error {
+	ctx = namespaces.WithNamespace(ctx, "k8s.io")
+	for _, c := range containerList {
+		if _, err := ctrd.TaskService().Resume(ctx, &tasks.ResumeTaskRequest{ContainerID: c}); err != nil {
+			return fmt.Errorf("%s not resumed: %v", c, err)
+		}
+	}
+	return nil
 }
 
 func lookupContainerIDs(ctrs *cri.ListContainersResponse) ([]string, error) {

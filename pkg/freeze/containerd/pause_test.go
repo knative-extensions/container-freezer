@@ -6,15 +6,20 @@ import (
 	"testing"
 
 	"github.com/containerd/containerd"
-	types1 "github.com/gogo/protobuf/types"
 	"google.golang.org/grpc"
 	cri "k8s.io/cri-api/pkg/apis/runtime/v1alpha2"
 	"knative.dev/container-freezer/pkg/daemon"
 )
 
+const (
+	freezeMethod = "freeze"
+	thawMethod   = "thaw"
+)
+
 var (
 	containers []*cri.Container
 	results    []string
+	method     string
 )
 
 var (
@@ -33,15 +38,23 @@ func (c *FakeContainerdCri) List(ctx context.Context, conn *grpc.ClientConn, pod
 }
 
 func (c *FakeContainerdCri) Pause(ctx context.Context, ctrd *containerd.Client, containerList []string) error {
-	check := compareContainerLists(containerList, results)
-	if !check {
+	if method != freezeMethod {
+		return fmt.Errorf("wrong method, expected: %s, got: %s", freezeMethod, method)
+	}
+	if !compareContainerLists(containerList, results) {
 		return fmt.Errorf("paused container list did not match")
 	}
 	return nil
 }
 
-func (c *FakeContainerdCri) Resume(ctx context.Context, ctrd *containerd.Client, containerList string) (*types1.Empty, error) {
-	return nil, nil
+func (c *FakeContainerdCri) Resume(ctx context.Context, ctrd *containerd.Client, containerList []string) error {
+	if method != thawMethod {
+		return fmt.Errorf("wrong method, expected: %s, got: %s", thawMethod, method)
+	}
+	if !compareContainerLists(containerList, results) {
+		return fmt.Errorf("resume container list did not match")
+	}
+	return nil
 }
 
 func TestContainerPause(t *testing.T) {
@@ -50,16 +63,20 @@ func TestContainerPause(t *testing.T) {
 	tests := []struct {
 		containers []*cri.Container
 		results    []string
+		method     string
 	}{{
 		containers: []*cri.Container{&queueProxy, &userContainer},
 		results:    []string{"usercontainer"},
+		method:     "freeze",
 	}, {
 		containers: []*cri.Container{&queueProxy, &userContainer, &userContainer2},
 		results:    []string{"usercontainer", "usercontainer2"},
+		method:     "freeze",
 	}}
 	for _, c := range tests {
 		containers = c.containers
 		results = c.results
+		method = c.method
 
 		fakeFreezeThawer, err = New(&FakeContainerdCri{})
 		if err != nil {
@@ -67,6 +84,37 @@ func TestContainerPause(t *testing.T) {
 		}
 		if err := fakeFreezeThawer.Freeze(nil, ""); err != nil {
 			t.Errorf("unable to freeze containers: %v", err)
+		}
+	}
+}
+
+func TestContainerResume(t *testing.T) {
+	var fakeFreezeThawer daemon.FreezeThawer
+	var err error
+	tests := []struct {
+		containers []*cri.Container
+		results    []string
+		method     string
+	}{{
+		containers: []*cri.Container{&queueProxy, &userContainer},
+		results:    []string{"usercontainer"},
+		method:     "thaw",
+	}, {
+		containers: []*cri.Container{&queueProxy, &userContainer, &userContainer2},
+		results:    []string{"usercontainer", "usercontainer2"},
+		method:     "thaw",
+	}}
+	for _, c := range tests {
+		containers = c.containers
+		results = c.results
+		method = c.method
+
+		fakeFreezeThawer, err = New(&FakeContainerdCri{})
+		if err != nil {
+			t.Errorf("unable to create freezeThawer: %v", err)
+		}
+		if err := fakeFreezeThawer.Thaw(nil, ""); err != nil {
+			t.Errorf("unable to thaw containers: %v", err)
 		}
 	}
 }
