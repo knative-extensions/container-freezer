@@ -3,6 +3,7 @@ package containerd
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"testing"
 
 	"github.com/containerd/containerd"
@@ -11,48 +12,52 @@ import (
 	"knative.dev/container-freezer/pkg/daemon"
 )
 
-const (
-	freezeMethod = "freeze"
-	thawMethod   = "thaw"
-)
-
 var (
 	containers []*cri.Container
 	results    []string
 	method     string
 )
 
-var (
-	queueProxy     = cri.Container{Id: "queueproxy", Metadata: &cri.ContainerMetadata{Name: "queue-proxy"}}
-	userContainer  = cri.Container{Id: "usercontainer", Metadata: &cri.ContainerMetadata{Name: "user-container"}}
-	userContainer2 = cri.Container{Id: "usercontainer2", Metadata: &cri.ContainerMetadata{Name: "user-container2"}}
-)
+type FakeContainerdCri struct {
+	containers []*cri.Container
+	results    []string
+	method     string
+}
 
-type FakeContainerdCri struct{}
+// Container creates a CRI container with the given container ID and name
+func Container(id, name string) cri.Container {
+	return cri.Container{
+		Id: id,
+		Metadata: &cri.ContainerMetadata{
+			Name: name,
+		},
+	}
+}
 
 func (c *FakeContainerdCri) List(ctx context.Context, conn *grpc.ClientConn, podUID string) (*cri.ListContainersResponse, error) {
 	listContainers := &cri.ListContainersResponse{
-		Containers: containers,
+		Containers: c.containers,
+	}
+	containerIDs, err := lookupContainerIDs(listContainers)
+	if err != nil {
+		return nil, fmt.Errorf("expected list of containers ids but got %w", err)
+	}
+	if !reflect.DeepEqual(containerIDs, c.results) {
+		return nil, fmt.Errorf("list of containers did not matche expected results: %w", err)
 	}
 	return listContainers, nil
 }
 
-func (c *FakeContainerdCri) Pause(ctx context.Context, ctrd *containerd.Client, containerList []string) error {
-	if method != freezeMethod {
-		return fmt.Errorf("wrong method, expected: %s, got: %s", freezeMethod, method)
-	}
-	if !compareContainerLists(containerList, results) {
-		return fmt.Errorf("paused container list did not match")
+func (c *FakeContainerdCri) Pause(ctx context.Context, ctrd *containerd.Client, container string) error {
+	if c.method != "freeze" {
+		return fmt.Errorf("wrong method, expected: %s, got: %s", "freeze", method)
 	}
 	return nil
 }
 
-func (c *FakeContainerdCri) Resume(ctx context.Context, ctrd *containerd.Client, containerList []string) error {
-	if method != thawMethod {
-		return fmt.Errorf("wrong method, expected: %s, got: %s", thawMethod, method)
-	}
-	if !compareContainerLists(containerList, results) {
-		return fmt.Errorf("resume container list did not match")
+func (c *FakeContainerdCri) Resume(ctx context.Context, ctrd *containerd.Client, container string) error {
+	if c.method != "thaw" {
+		return fmt.Errorf("wrong method, expected: %s, got: %s", "thaw", method)
 	}
 	return nil
 }
@@ -60,6 +65,11 @@ func (c *FakeContainerdCri) Resume(ctx context.Context, ctrd *containerd.Client,
 func TestContainerPause(t *testing.T) {
 	var fakeFreezeThawer daemon.FreezeThawer
 	var err error
+
+	queueProxy := Container("queueproxy", "queue-proxy")
+	userContainer := Container("usercontainer", "user-container")
+	userContainer2 := Container("usercontainer2", "user-container2")
+
 	tests := []struct {
 		containers []*cri.Container
 		results    []string
@@ -74,13 +84,13 @@ func TestContainerPause(t *testing.T) {
 		method:     "freeze",
 	}}
 	for _, c := range tests {
-		containers = c.containers
-		results = c.results
-		method = c.method
-
-		fakeFreezeThawer, err = New(&FakeContainerdCri{})
+		fakeFreezeThawer, err = New(&FakeContainerdCri{
+			containers: c.containers,
+			results:    c.results,
+			method:     c.method,
+		})
 		if err != nil {
-			t.Errorf("unable to create freezeThawer: %v", err)
+			t.Errorf("expected New() to succeed by got %q", err)
 		}
 		if err := fakeFreezeThawer.Freeze(nil, ""); err != nil {
 			t.Errorf("unable to freeze containers: %v", err)
@@ -91,6 +101,11 @@ func TestContainerPause(t *testing.T) {
 func TestContainerResume(t *testing.T) {
 	var fakeFreezeThawer daemon.FreezeThawer
 	var err error
+
+	queueProxy := Container("queueproxy", "queue-proxy")
+	userContainer := Container("usercontainer", "user-container")
+	userContainer2 := Container("usercontainer2", "user-container2")
+
 	tests := []struct {
 		containers []*cri.Container
 		results    []string
@@ -105,13 +120,13 @@ func TestContainerResume(t *testing.T) {
 		method:     "thaw",
 	}}
 	for _, c := range tests {
-		containers = c.containers
-		results = c.results
-		method = c.method
-
-		fakeFreezeThawer, err = New(&FakeContainerdCri{})
+		fakeFreezeThawer, err = New(&FakeContainerdCri{
+			containers: c.containers,
+			results:    c.results,
+			method:     c.method,
+		})
 		if err != nil {
-			t.Errorf("unable to create freezeThawer: %v", err)
+			t.Errorf("expected New() to succeed but got %q", err)
 		}
 		if err := fakeFreezeThawer.Thaw(nil, ""); err != nil {
 			t.Errorf("unable to thaw containers: %v", err)
@@ -120,14 +135,23 @@ func TestContainerResume(t *testing.T) {
 }
 
 func TestNoQueueProxyPause(t *testing.T) {
+	queueProxy := Container("queueproxy", "queue-proxy")
+
 	containers = []*cri.Container{&queueProxy}
 	results = []string{}
+	method = ""
 
-	f := FakeContainerdCri{}
-	cntr, _ := f.List(nil, nil, "")
-	ids, _ := lookupContainerIDs(cntr)
-	if !compareContainerLists(ids, results) {
-		t.Errorf("expected %s, got %s", ids, results)
+	f := FakeContainerdCri{
+		containers: containers,
+		results:    results,
+		method:     method,
+	}
+	_, err := f.List(nil, nil, "")
+	if err == nil {
+		t.Errorf("expecting error and got nil")
+	}
+	if err.Error() != "expected list of containers ids but got no non queue-proxy containers found in pod" {
+		t.Errorf("expecting \"no non queue-proxy\" error but got %v", err)
 	}
 }
 

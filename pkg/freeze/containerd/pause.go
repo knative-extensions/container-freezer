@@ -18,8 +18,8 @@ const defaultContainerdAddress = "/var/run/containerd/containerd.sock"
 
 type CRI interface {
 	List(ctx context.Context, conn *grpc.ClientConn, podUID string) (*cri.ListContainersResponse, error)
-	Pause(ctx context.Context, ctrd *containerd.Client, containerList []string) error
-	Resume(ctx context.Context, ctrd *containerd.Client, containerList []string) error
+	Pause(ctx context.Context, ctrd *containerd.Client, container string) error
+	Resume(ctx context.Context, ctrd *containerd.Client, container string) error
 }
 
 // Containerd freezes and unfreezes containers via containerd.
@@ -60,8 +60,10 @@ func (f *Containerd) Freeze(ctx context.Context, podName string) error {
 		return err
 	}
 
-	if err := f.containerd.Pause(ctx, ctrd, containerIDs); err != nil {
-		return err
+	for _, c := range containerIDs {
+		if err := f.containerd.Pause(ctx, ctrd, c); err != nil {
+			return fmt.Errorf("%s not paused: %v", c, err)
+		}
 	}
 	return nil
 }
@@ -79,8 +81,10 @@ func (f *Containerd) Thaw(ctx context.Context, podName string) error {
 		return err
 	}
 
-	if err := f.containerd.Resume(ctx, ctrd, containerIDs); err != nil {
-		return err
+	for _, c := range containerIDs {
+		if err := f.containerd.Resume(ctx, ctrd, c); err != nil {
+			return fmt.Errorf("%s not resumed: %v", c, err)
+		}
 	}
 	return nil
 }
@@ -117,23 +121,19 @@ func (c *ContainerdCri) List(ctx context.Context, conn *grpc.ClientConn, podUID 
 }
 
 // Pause performs a pause action on a specific container
-func (c *ContainerdCri) Pause(ctx context.Context, ctrd *containerd.Client, containerList []string) error {
+func (c *ContainerdCri) Pause(ctx context.Context, ctrd *containerd.Client, container string) error {
 	ctx = namespaces.WithNamespace(ctx, "k8s.io")
-	for _, c := range containerList {
-		if _, err := ctrd.TaskService().Pause(ctx, &tasks.PauseTaskRequest{ContainerID: c}); err != nil {
-			return fmt.Errorf("%s not paused: %v", c, err)
-		}
+	if _, err := ctrd.TaskService().Pause(ctx, &tasks.PauseTaskRequest{ContainerID: container}); err != nil {
+		return fmt.Errorf("%s not paused: %v", container, err)
 	}
 	return nil
 }
 
 // Resume performs a resume action on a specific container
-func (c *ContainerdCri) Resume(ctx context.Context, ctrd *containerd.Client, containerList []string) error {
+func (c *ContainerdCri) Resume(ctx context.Context, ctrd *containerd.Client, container string) error {
 	ctx = namespaces.WithNamespace(ctx, "k8s.io")
-	for _, c := range containerList {
-		if _, err := ctrd.TaskService().Resume(ctx, &tasks.ResumeTaskRequest{ContainerID: c}); err != nil {
-			return fmt.Errorf("%s not resumed: %v", c, err)
-		}
+	if _, err := ctrd.TaskService().Resume(ctx, &tasks.ResumeTaskRequest{ContainerID: container}); err != nil {
+		return fmt.Errorf("%s not resumed: %v", container, err)
 	}
 	return nil
 }
