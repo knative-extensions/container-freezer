@@ -9,6 +9,7 @@ import (
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/api/services/tasks/v1"
 	"github.com/containerd/containerd/namespaces"
+	types1 "github.com/gogo/protobuf/types"
 	"google.golang.org/grpc"
 
 	cri "k8s.io/cri-api/pkg/apis/runtime/v1alpha2"
@@ -16,14 +17,21 @@ import (
 
 const defaultContainerdAddress = "/var/run/containerd/containerd.sock"
 
+type CRI interface {
+	List(ctx context.Context, conn *grpc.ClientConn, podUID string) (*cri.ListContainersResponse, error)
+	Pause(ctx context.Context, ctrd *containerd.Client, container string) (*types1.Empty, error)
+	Resume(ctx context.Context, ctrd *containerd.Client, container string) (*types1.Empty, error)
+}
+
 // Containerd freezes and unfreezes containers via containerd.
 type Containerd struct {
-	conn *grpc.ClientConn
+	conn       *grpc.ClientConn
+	containerd CRI
 }
 
 // New return a FreezeThawer based on Containerd.
 // Requires /var/run/containerd/containerd.sock to be mounted.
-func New() (*Containerd, error) {
+func New(c CRI) (*Containerd, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
@@ -35,7 +43,8 @@ func New() (*Containerd, error) {
 	}
 
 	return &Containerd{
-		conn: conn,
+		conn:       conn,
+		containerd: c,
 	}, nil
 }
 
@@ -46,7 +55,7 @@ func (f *Containerd) Freeze(ctx context.Context, podName string) error {
 		return err
 	}
 
-	containers, err := f.GetContainers(ctx, f.conn, podName)
+	containers, err := f.containerd.List(ctx, f.conn, podName)
 	containerIDs, err := lookupContainerIDs(containers)
 	if err != nil {
 		return err
@@ -54,7 +63,7 @@ func (f *Containerd) Freeze(ctx context.Context, podName string) error {
 
 	ctx = namespaces.WithNamespace(ctx, "k8s.io")
 	for _, c := range containerIDs {
-		if _, err := ctrd.TaskService().Pause(ctx, &tasks.PauseTaskRequest{ContainerID: c}); err != nil {
+		if _, err := f.containerd.Pause(ctx, ctrd, c); err != nil {
 			return err
 		}
 	}
@@ -69,7 +78,7 @@ func (f *Containerd) Thaw(ctx context.Context, podName string) error {
 		return err
 	}
 
-	containers, err := f.GetContainers(ctx, f.conn, podName)
+	containers, err := f.containerd.List(ctx, f.conn, podName)
 	containerIDs, err := lookupContainerIDs(containers)
 	if err != nil {
 		return err
@@ -77,14 +86,17 @@ func (f *Containerd) Thaw(ctx context.Context, podName string) error {
 
 	ctx = namespaces.WithNamespace(ctx, "k8s.io")
 	for _, c := range containerIDs {
-		if _, err := ctrd.TaskService().Resume(ctx, &tasks.ResumeTaskRequest{ContainerID: c}); err != nil {
+		if _, err := f.containerd.Resume(ctx, ctrd, c); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (f *Containerd) GetContainers(ctx context.Context, conn *grpc.ClientConn, podUID string) (*cri.ListContainersResponse, error) {
+type ContainerdCri struct{}
+
+// List returns all containers in a given pod
+func (c *ContainerdCri) List(ctx context.Context, conn *grpc.ClientConn, podUID string) (*cri.ListContainersResponse, error) {
 	client := cri.NewRuntimeServiceClient(conn)
 	pods, err := client.ListPodSandbox(context.Background(), &cri.ListPodSandboxRequest{
 		Filter: &cri.PodSandboxFilter{
@@ -110,6 +122,16 @@ func (f *Containerd) GetContainers(ctx context.Context, conn *grpc.ClientConn, p
 	}
 
 	return ctrs, nil
+}
+
+// Pause performs a pause action on a specific container
+func (c *ContainerdCri) Pause(ctx context.Context, ctrd *containerd.Client, container string) (*types1.Empty, error) {
+	return ctrd.TaskService().Pause(ctx, &tasks.PauseTaskRequest{ContainerID: container})
+}
+
+// Resume performs a resume action on a specific container
+func (c *ContainerdCri) Resume(ctx context.Context, ctrd *containerd.Client, container string) (*types1.Empty, error) {
+	return ctrd.TaskService().Resume(ctx, &tasks.ResumeTaskRequest{ContainerID: container})
 }
 
 func lookupContainerIDs(ctrs *cri.ListContainersResponse) ([]string, error) {

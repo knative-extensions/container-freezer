@@ -4,6 +4,7 @@ go 1.16
 
 require (
 	github.com/containerd/containerd v1.5.7
+	github.com/gogo/protobuf v1.3.2
 	go.uber.org/zap v1.19.1
 	google.golang.org/grpc v1.42.0
 	k8s.io/api v0.21.4
