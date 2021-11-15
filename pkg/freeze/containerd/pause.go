@@ -2,6 +2,7 @@ package containerd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"time"
@@ -27,6 +28,8 @@ type Containerd struct {
 	conn       *grpc.ClientConn
 	containerd CRI
 }
+
+var ErrNoNonQueueProxyPods = errors.New("no non queue-proxy containers found in pod")
 
 // New return a FreezeThawer based on Containerd.
 // Requires /var/run/containerd/containerd.sock to be mounted.
@@ -147,7 +150,8 @@ func lookupContainerIDs(ctrs *cri.ListContainersResponse) ([]string, error) {
 	}
 
 	if len(ids) == 0 {
-		return nil, fmt.Errorf("no non queue-proxy containers found in pod")
+		return nil, ErrNoNonQueueProxyPods
+		//	return nil, fmt.Errorf("no non queue-proxy containers found in pod")
 	}
 
 	return ids, nil

@@ -2,6 +2,7 @@ package containerd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"reflect"
 	"testing"
@@ -25,8 +26,8 @@ type FakeContainerdCri struct {
 }
 
 // Container creates a CRI container with the given container ID and name
-func Container(id, name string) cri.Container {
-	return cri.Container{
+func Container(id, name string) *cri.Container {
+	return &cri.Container{
 		Id: id,
 		Metadata: &cri.ContainerMetadata{
 			Name: name,
@@ -43,7 +44,7 @@ func (c *FakeContainerdCri) List(ctx context.Context, conn *grpc.ClientConn, pod
 		return nil, fmt.Errorf("expected list of containers ids but got %w", err)
 	}
 	if !reflect.DeepEqual(containerIDs, c.results) {
-		return nil, fmt.Errorf("list of containers did not matche expected results: %w", err)
+		return nil, fmt.Errorf("list of containers did not match expected results: got %q, want %q", c.results, containerIDs)
 	}
 	return listContainers, nil
 }
@@ -66,22 +67,22 @@ func TestContainerPause(t *testing.T) {
 	var fakeFreezeThawer daemon.FreezeThawer
 	var err error
 
-	queueProxy := Container("queueproxy", "queue-proxy")
-	userContainer := Container("usercontainer", "user-container")
-	userContainer2 := Container("usercontainer2", "user-container2")
-
 	tests := []struct {
 		containers []*cri.Container
 		results    []string
 		method     string
 	}{{
-		containers: []*cri.Container{&queueProxy, &userContainer},
+		containers: []*cri.Container{Container("queueproxy", "queue-proxy"), Container("usercontainer", "user-container")},
 		results:    []string{"usercontainer"},
 		method:     "freeze",
 	}, {
-		containers: []*cri.Container{&queueProxy, &userContainer, &userContainer2},
-		results:    []string{"usercontainer", "usercontainer2"},
-		method:     "freeze",
+		containers: []*cri.Container{
+			Container("queueproxy", "queue-proxy"),
+			Container("usercontainer", "user-container"),
+			Container("usercontainer2", "user-container2"),
+		},
+		results: []string{"usercontainer", "usercontainer2"},
+		method:  "freeze",
 	}}
 	for _, c := range tests {
 		fakeFreezeThawer, err = New(&FakeContainerdCri{
@@ -90,7 +91,7 @@ func TestContainerPause(t *testing.T) {
 			method:     c.method,
 		})
 		if err != nil {
-			t.Errorf("expected New() to succeed by got %q", err)
+			t.Errorf("expected New() to succeed but got %q", err)
 		}
 		if err := fakeFreezeThawer.Freeze(nil, ""); err != nil {
 			t.Errorf("unable to freeze containers: %v", err)
@@ -102,22 +103,22 @@ func TestContainerResume(t *testing.T) {
 	var fakeFreezeThawer daemon.FreezeThawer
 	var err error
 
-	queueProxy := Container("queueproxy", "queue-proxy")
-	userContainer := Container("usercontainer", "user-container")
-	userContainer2 := Container("usercontainer2", "user-container2")
-
 	tests := []struct {
 		containers []*cri.Container
 		results    []string
 		method     string
 	}{{
-		containers: []*cri.Container{&queueProxy, &userContainer},
+		containers: []*cri.Container{Container("queueproxy", "queue-proxy"), Container("usercontainer", "user-container")},
 		results:    []string{"usercontainer"},
 		method:     "thaw",
 	}, {
-		containers: []*cri.Container{&queueProxy, &userContainer, &userContainer2},
-		results:    []string{"usercontainer", "usercontainer2"},
-		method:     "thaw",
+		containers: []*cri.Container{
+			Container("queueproxy", "queue-proxy"),
+			Container("usercontainer", "user-container"),
+			Container("usercontainer2", "user-container2"),
+		},
+		results: []string{"usercontainer", "usercontainer2"},
+		method:  "thaw",
 	}}
 	for _, c := range tests {
 		fakeFreezeThawer, err = New(&FakeContainerdCri{
@@ -135,23 +136,15 @@ func TestContainerResume(t *testing.T) {
 }
 
 func TestNoQueueProxyPause(t *testing.T) {
-	queueProxy := Container("queueproxy", "queue-proxy")
-
-	containers = []*cri.Container{&queueProxy}
-	results = []string{}
-	method = ""
-
 	f := FakeContainerdCri{
-		containers: containers,
-		results:    results,
-		method:     method,
+		containers: []*cri.Container{Container("queueproxy", "queue-proxy")},
 	}
 	_, err := f.List(nil, nil, "")
 	if err == nil {
 		t.Errorf("expecting error and got nil")
 	}
-	if err.Error() != "expected list of containers ids but got no non queue-proxy containers found in pod" {
-		t.Errorf("expecting \"no non queue-proxy\" error but got %v", err)
+	if !errors.Is(err, ErrNoNonQueueProxyPods) {
+		t.Errorf("expecting %q error but got %q", ErrNoNonQueueProxyPods, err)
 	}
 }
 
