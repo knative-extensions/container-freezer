@@ -148,11 +148,8 @@ func lookupContainerIDs(ctrs *cri.ListContainersResponse) ([]string, error) {
 			ids = append(ids, c.Id)
 		}
 	}
-
 	if len(ids) == 0 {
 		return nil, ErrNoNonQueueProxyPods
-		//	return nil, fmt.Errorf("no non queue-proxy containers found in pod")
 	}
-
 	return ids, nil
 }
