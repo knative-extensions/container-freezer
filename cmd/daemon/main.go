@@ -35,7 +35,7 @@ func main() {
 	switch runtimeType {
 	case runtimeTypeContainerd:
 		logger.Info("creating new containerd freezeThawer")
-		freezeThaw, err = containerd.New(&containerd.ContainerdCri{})
+		freezeThaw, err = containerd.New(&containerd.ContainerdCRI{})
 		// TODO support docker, crio
 	default:
 		log.Fatal("unrecognised runtimeType", runtimeType)
