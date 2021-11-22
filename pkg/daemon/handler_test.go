@@ -65,8 +65,7 @@ func TestHandler(t *testing.T) {
 					Authenticated: true,
 					User: authv1.UserInfo{
 						Extra: map[string]authv1.ExtraValue{
-							"authentication.kubernetes.io/pod-uid":  {"the-pod-name"},
-							"authentication.kubernetes.io/pod-name": {"the-pod-name"},
+							"authentication.kubernetes.io/pod-uid": {"the-pod-uid"},
 						},
 					},
 				},
@@ -77,7 +76,7 @@ func TestHandler(t *testing.T) {
 		},
 
 		expectStatus: 200,
-		expectFreeze: "the-pod-name",
+		expectFreeze: "the-pod-uid",
 	}, {
 		name: "valid token, thaw",
 		body: resumeBody,
@@ -87,8 +86,7 @@ func TestHandler(t *testing.T) {
 					Authenticated: true,
 					User: authv1.UserInfo{
 						Extra: map[string]authv1.ExtraValue{
-							"authentication.kubernetes.io/pod-uid":  {"the-pod-name"},
-							"authentication.kubernetes.io/pod-name": {"the-pod-name"},
+							"authentication.kubernetes.io/pod-uid": {"the-pod-uid"},
 						},
 					},
 				},
@@ -99,7 +97,7 @@ func TestHandler(t *testing.T) {
 		},
 
 		expectStatus: 200,
-		expectThaw:   "the-pod-name",
+		expectThaw:   "the-pod-uid",
 	}}
 
 	for _, test := range tt {
