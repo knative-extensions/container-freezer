@@ -2,7 +2,6 @@ package containerd
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"reflect"
 	"testing"
@@ -19,7 +18,9 @@ var (
 	method     string
 )
 
-type FakeContainerdCri struct {
+type FakeContainerdCRI struct {
+	paused     []string
+	resumed    []string
 	containers []*cri.Container
 	results    []string
 	method     string
@@ -35,30 +36,38 @@ func Container(id, name string) *cri.Container {
 	}
 }
 
-func (c *FakeContainerdCri) List(ctx context.Context, conn *grpc.ClientConn, podUID string) (*cri.ListContainersResponse, error) {
-	listContainers := &cri.ListContainersResponse{
-		Containers: c.containers,
-	}
-	containerIDs, err := lookupContainerIDs(listContainers)
-	if err != nil {
-		return nil, fmt.Errorf("expected list of containers ids but got %w", err)
-	}
-	if !reflect.DeepEqual(containerIDs, c.results) {
-		return nil, fmt.Errorf("list of containers did not match expected results: got %q, want %q", c.results, containerIDs)
-	}
-	return listContainers, nil
+func (c *FakeContainerdCRI) List(ctx context.Context, conn *grpc.ClientConn, podUID string) (*cri.ListContainersResponse, error) {
+	return &cri.ListContainersResponse{Containers: c.containers}, nil
 }
 
-func (c *FakeContainerdCri) Pause(ctx context.Context, ctrd *containerd.Client, container string) error {
+func (c *FakeContainerdCRI) Pause(ctx context.Context, ctrd *containerd.Client, container string) error {
+	listContainers, _ := c.List(nil, nil, "")
+	containerIDs, err := lookupContainerIDs(listContainers)
+	if err != nil {
+		return fmt.Errorf("expected list of containers ids but got %w", err)
+	}
+	c.paused = containerIDs
 	if c.method != "freeze" {
 		return fmt.Errorf("wrong method, expected: %s, got: %s", "freeze", method)
+	}
+	if !reflect.DeepEqual(c.paused, c.results) {
+		return fmt.Errorf("paused list wrong, expected: %s, got %s", c.results, c.paused)
 	}
 	return nil
 }
 
-func (c *FakeContainerdCri) Resume(ctx context.Context, ctrd *containerd.Client, container string) error {
+func (c *FakeContainerdCRI) Resume(ctx context.Context, ctrd *containerd.Client, container string) error {
+	listContainers, _ := c.List(nil, nil, "")
+	containerIDs, err := lookupContainerIDs(listContainers)
+	if err != nil {
+		return fmt.Errorf("expected list of containers ids but got %w", err)
+	}
+	c.resumed = containerIDs
 	if c.method != "thaw" {
-		return fmt.Errorf("wrong method, expected: %s, got: %s", "thaw", method)
+		return fmt.Errorf("wrong method, expected: %s, got: %s", "freeze", method)
+	}
+	if !reflect.DeepEqual(c.resumed, c.results) {
+		return fmt.Errorf("resumed list wrong, expected: %s, got %s", c.results, c.resumed)
 	}
 	return nil
 }
@@ -85,7 +94,8 @@ func TestContainerPause(t *testing.T) {
 		method:  "freeze",
 	}}
 	for _, c := range tests {
-		fakeFreezeThawer, err = New(&FakeContainerdCri{
+		fakeFreezeThawer, err = New(&FakeContainerdCRI{
+			paused:     nil,
 			containers: c.containers,
 			results:    c.results,
 			method:     c.method,
@@ -121,7 +131,8 @@ func TestContainerResume(t *testing.T) {
 		method:  "thaw",
 	}}
 	for _, c := range tests {
-		fakeFreezeThawer, err = New(&FakeContainerdCri{
+		fakeFreezeThawer, err = New(&FakeContainerdCRI{
+			resumed:    nil,
 			containers: c.containers,
 			results:    c.results,
 			method:     c.method,
@@ -132,18 +143,5 @@ func TestContainerResume(t *testing.T) {
 		if err := fakeFreezeThawer.Thaw(nil, ""); err != nil {
 			t.Errorf("unable to thaw containers: %v", err)
 		}
-	}
-}
-
-func TestNoQueueProxyPause(t *testing.T) {
-	f := FakeContainerdCri{
-		containers: []*cri.Container{Container("queueproxy", "queue-proxy")},
-	}
-	_, err := f.List(nil, nil, "")
-	if err == nil {
-		t.Errorf("expecting error and got nil")
-	}
-	if !errors.Is(err, ErrNoNonQueueProxyPods) {
-		t.Errorf("expecting %q error but got %q", ErrNoNonQueueProxyPods, err)
 	}
 }
