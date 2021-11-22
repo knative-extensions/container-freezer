@@ -65,10 +65,10 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	switch m.Action {
 	case "pause":
-		h.Logger.Info("pause request received, freezing pod...")
+		h.Logger.Info("pause request received, freezing pod: %s", resp.Status.User.Extra["authentication.kubernetes.io/pod-name"][0])
 		h.Freezer.Freeze(r.Context(), resp.Status.User.Extra["authentication.kubernetes.io/pod-uid"][0], "user-container")
 	case "resume":
-		h.Logger.Info("resume request received, thawing pod...")
+		h.Logger.Info("resume request received, thawing pod: %s", resp.Status.User.Extra["authentication.kubernetes.io/pod-name"][0])
 		h.Thawer.Thaw(r.Context(), resp.Status.User.Extra["authentication.kubernetes.io/pod-uid"][0], "user-container")
 	default:
 		h.Logger.Info("invalid action specified: ", m.Action)

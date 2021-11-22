@@ -65,7 +65,8 @@ func TestHandler(t *testing.T) {
 					Authenticated: true,
 					User: authv1.UserInfo{
 						Extra: map[string]authv1.ExtraValue{
-							"authentication.kubernetes.io/pod-uid": {"the-pod-name"},
+							"authentication.kubernetes.io/pod-uid":  {"the-pod-name"},
+							"authentication.kubernetes.io/pod-name": {"the-pod-name"},
 						},
 					},
 				},
@@ -86,7 +87,8 @@ func TestHandler(t *testing.T) {
 					Authenticated: true,
 					User: authv1.UserInfo{
 						Extra: map[string]authv1.ExtraValue{
-							"authentication.kubernetes.io/pod-uid": {"the-pod-name"},
+							"authentication.kubernetes.io/pod-uid":  {"the-pod-name"},
+							"authentication.kubernetes.io/pod-name": {"the-pod-name"},
 						},
 					},
 				},
