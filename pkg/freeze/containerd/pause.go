@@ -92,10 +92,10 @@ func (f *Containerd) Thaw(ctx context.Context, podName string) error {
 	return nil
 }
 
-type ContainerdCri struct{}
+type ContainerdCRI struct{}
 
 // List returns all containers in a given pod
-func (c *ContainerdCri) List(ctx context.Context, conn *grpc.ClientConn, podUID string) (*cri.ListContainersResponse, error) {
+func (c *ContainerdCRI) List(ctx context.Context, conn *grpc.ClientConn, podUID string) (*cri.ListContainersResponse, error) {
 	client := cri.NewRuntimeServiceClient(conn)
 	pods, err := client.ListPodSandbox(context.Background(), &cri.ListPodSandboxRequest{
 		Filter: &cri.PodSandboxFilter{
@@ -124,7 +124,7 @@ func (c *ContainerdCri) List(ctx context.Context, conn *grpc.ClientConn, podUID 
 }
 
 // Pause performs a pause action on a specific container
-func (c *ContainerdCri) Pause(ctx context.Context, ctrd *containerd.Client, container string) error {
+func (c *ContainerdCRI) Pause(ctx context.Context, ctrd *containerd.Client, container string) error {
 	ctx = namespaces.WithNamespace(ctx, "k8s.io")
 	if _, err := ctrd.TaskService().Pause(ctx, &tasks.PauseTaskRequest{ContainerID: container}); err != nil {
 		return fmt.Errorf("%s not paused: %v", container, err)
@@ -133,7 +133,7 @@ func (c *ContainerdCri) Pause(ctx context.Context, ctrd *containerd.Client, cont
 }
 
 // Resume performs a resume action on a specific container
-func (c *ContainerdCri) Resume(ctx context.Context, ctrd *containerd.Client, container string) error {
+func (c *ContainerdCRI) Resume(ctx context.Context, ctrd *containerd.Client, container string) error {
 	ctx = namespaces.WithNamespace(ctx, "k8s.io")
 	if _, err := ctrd.TaskService().Resume(ctx, &tasks.ResumeTaskRequest{ContainerID: container}); err != nil {
 		return fmt.Errorf("%s not resumed: %v", container, err)
