@@ -147,15 +147,3 @@ func TestNoQueueProxyPause(t *testing.T) {
 		t.Errorf("expecting %q error but got %q", ErrNoNonQueueProxyPods, err)
 	}
 }
-
-func compareContainerLists(a, b []string) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for k, v := range a {
-		if v != b[k] {
-			return false
-		}
-	}
-	return true
-}
