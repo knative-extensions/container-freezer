@@ -509,10 +509,10 @@ k8s.io/cri-api/pkg/apis/runtime/v1alpha2
 k8s.io/klog/v2
 # k8s.io/utils v0.0.0-20201110183641-67b214c5f920
 k8s.io/utils/integer
-# knative.dev/hack v0.0.0-20211112192837-128cf0150a69
+# knative.dev/hack v0.0.0-20211122162614-813559cefdda
 ## explicit
 knative.dev/hack
-# knative.dev/pkg v0.0.0-20211111114938-0b0c3390a475
+# knative.dev/pkg v0.0.0-20211120133512-d016976f2567
 ## explicit
 knative.dev/pkg/changeset
 knative.dev/pkg/logging
