@@ -58,20 +58,20 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	var m messageBody
 	if err := json.NewDecoder(r.Body).Decode(&m); err != nil {
-		h.Logger.Error("Unable to decode message body: %v", err)
+		h.Logger.Errorf("Unable to decode message body: %v", err)
 		w.WriteHeader(http.StatusBadRequest)
 	}
 
 	podUid := resp.Status.User.Extra["authentication.kubernetes.io/pod-uid"][0]
 	switch m.Action {
 	case "pause":
-		h.Logger.Info("pause request received, freezing pod: %s", podUid)
+		h.Logger.Infof("pause request received, freezing pod: %s", podUid)
 		h.Freezer.Freeze(r.Context(), podUid, "user-container")
 	case "resume":
-		h.Logger.Info("resume request received, thawing pod: %s", podUid)
+		h.Logger.Infof("resume request received, thawing pod: %s", podUid)
 		h.Thawer.Thaw(r.Context(), podUid, "user-container")
 	default:
-		h.Logger.Info("invalid action specified: ", m.Action)
+		h.Logger.Infof("invalid action specified: %s", m.Action)
 		w.WriteHeader(http.StatusNotFound)
 	}
 }
