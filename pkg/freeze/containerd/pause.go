@@ -71,7 +71,7 @@ func (f *Containerd) Freeze(ctx context.Context, podName string) error {
 		}
 		frozen = append(frozen, c)
 	}
-	if reflect.DeepEqual(frozen, containerIDs) {
+	if !reflect.DeepEqual(frozen, containerIDs) {
 		return fmt.Errorf("pod has %s containers, but only %s frozen", containerIDs, frozen)
 	}
 	return nil
