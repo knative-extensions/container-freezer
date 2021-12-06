@@ -192,7 +192,7 @@ go.uber.org/zap/internal/exit
 go.uber.org/zap/internal/ztest
 go.uber.org/zap/zapcore
 go.uber.org/zap/zaptest
-# golang.org/x/net v0.0.0-20211101193420-4a448f8816b3
+# golang.org/x/net v0.0.0-20211205041911-012df41ee64c
 golang.org/x/net/context
 golang.org/x/net/context/ctxhttp
 golang.org/x/net/http/httpguts
@@ -201,13 +201,13 @@ golang.org/x/net/http2/hpack
 golang.org/x/net/idna
 golang.org/x/net/internal/timeseries
 golang.org/x/net/trace
-# golang.org/x/oauth2 v0.0.0-20211028175245-ba495a64dcb5
+# golang.org/x/oauth2 v0.0.0-20211104180415-d3ed0bb246c8
 golang.org/x/oauth2
 golang.org/x/oauth2/internal
 # golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 golang.org/x/sync/errgroup
 golang.org/x/sync/semaphore
-# golang.org/x/sys v0.0.0-20211025201205-69cdffdb9359
+# golang.org/x/sys v0.0.0-20211124211545-fe61309f8881
 golang.org/x/sys/internal/unsafeheader
 golang.org/x/sys/plan9
 golang.org/x/sys/unix
@@ -229,7 +229,7 @@ google.golang.org/appengine/internal/log
 google.golang.org/appengine/internal/remote_api
 google.golang.org/appengine/internal/urlfetch
 google.golang.org/appengine/urlfetch
-# google.golang.org/genproto v0.0.0-20211021150943-2b146023228c
+# google.golang.org/genproto v0.0.0-20211129164237-f09f9a12af12
 google.golang.org/genproto/googleapis/rpc/status
 # google.golang.org/grpc v1.42.0
 ## explicit
@@ -509,10 +509,10 @@ k8s.io/cri-api/pkg/apis/runtime/v1alpha2
 k8s.io/klog/v2
 # k8s.io/utils v0.0.0-20201110183641-67b214c5f920
 k8s.io/utils/integer
-# knative.dev/hack v0.0.0-20211122162614-813559cefdda
+# knative.dev/hack v0.0.0-20211203062838-e11ac125e707
 ## explicit
 knative.dev/hack
-# knative.dev/pkg v0.0.0-20211120133512-d016976f2567
+# knative.dev/pkg v0.0.0-20211206113427-18589ac7627e
 ## explicit
 knative.dev/pkg/changeset
 knative.dev/pkg/logging
