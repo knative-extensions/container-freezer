@@ -2,7 +2,7 @@ package containerd
 
 import (
 	"context"
-	"fmt"
+	"reflect"
 	"testing"
 
 	"github.com/containerd/containerd"
@@ -35,17 +35,11 @@ func (c *FakeContainerdCRI) List(ctx context.Context, conn *grpc.ClientConn, pod
 
 func (c *FakeContainerdCRI) Pause(ctx context.Context, ctrd *containerd.Client, container string) error {
 	c.paused = append(c.paused, container)
-	if c.method != "freeze" {
-		return fmt.Errorf("wrong method, expected: %s, got: %s", "freeze", c.method)
-	}
 	return nil
 }
 
 func (c *FakeContainerdCRI) Resume(ctx context.Context, ctrd *containerd.Client, container string) error {
 	c.resumed = append(c.resumed, container)
-	if c.method != "thaw" {
-		return fmt.Errorf("wrong method, expected: %s, got: %s", "freeze", c.method)
-	}
 	return nil
 }
 
@@ -80,8 +74,15 @@ func TestContainerPause(t *testing.T) {
 		if err != nil {
 			t.Errorf("expected New() to succeed but got %q", err)
 		}
-		if err := fakeFreezeThawer.Freeze(nil, ""); err != nil {
-			t.Errorf("unable to freeze containers: %v", err)
+		pods, method, err := fakeFreezeThawer.Freeze(nil, "")
+		if !reflect.DeepEqual(pods, c.results) {
+			t.Errorf("pod has %s containers, but only %s frozen", c.results, pods)
+		}
+		if method != c.method {
+			t.Errorf("wrong method, expected: %s, got: %s", c.method, method)
+		}
+		if err != nil {
+			t.Errorf("expected freeze to succeed but failed: %v", err)
 		}
 	}
 }
@@ -117,8 +118,15 @@ func TestContainerResume(t *testing.T) {
 		if err != nil {
 			t.Errorf("expected New() to succeed but got %q", err)
 		}
-		if err := fakeFreezeThawer.Thaw(nil, ""); err != nil {
-			t.Errorf("unable to thaw containers: %v", err)
+		pods, method, err := fakeFreezeThawer.Thaw(nil, "")
+		if !reflect.DeepEqual(pods, c.results) {
+			t.Errorf("pod has %s containers, but only %s thawed", c.results, pods)
+		}
+		if method != c.method {
+			t.Errorf("wrong method, expected: %s, got: %s", c.method, method)
+		}
+		if err != nil {
+			t.Errorf("expected thaw to succeed but failed: %v", err)
 		}
 	}
 }

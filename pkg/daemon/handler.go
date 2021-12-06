@@ -16,11 +16,11 @@ type TokenValidator interface {
 }
 
 type Freezer interface {
-	Freeze(ctx context.Context, podName string) error
+	Freeze(ctx context.Context, podName string) ([]string, string, error)
 }
 
 type Thawer interface {
-	Thaw(ctx context.Context, podName string) error
+	Thaw(ctx context.Context, podName string) ([]string, string, error)
 }
 
 type FreezeThawer interface {

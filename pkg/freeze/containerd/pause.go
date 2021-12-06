@@ -52,55 +52,57 @@ func New(c CRI) (*Containerd, error) {
 }
 
 // Freeze freezes the user container(s) via the freezer cgroup.
-func (f *Containerd) Freeze(ctx context.Context, podName string) error {
+func (f *Containerd) Freeze(ctx context.Context, podName string) ([]string, string, error) {
+	var frozen []string
+	method := "freeze"
 	ctrd, err := containerd.NewWithConn(f.conn)
 	if err != nil {
-		return err
+		return frozen, method, err
 	}
 
 	containers, err := f.containerd.List(ctx, f.conn, podName)
 	containerIDs, err := lookupContainerIDs(containers)
 	if err != nil {
-		return err
+		return frozen, method, err
 	}
 
-	var frozen []string
 	for _, c := range containerIDs {
 		if err := f.containerd.Pause(ctx, ctrd, c); err != nil {
-			return fmt.Errorf("%s not paused: %v", c, err)
+			return frozen, method, fmt.Errorf("%s not paused: %v", c, err)
 		}
 		frozen = append(frozen, c)
 	}
 	if !reflect.DeepEqual(frozen, containerIDs) {
-		return fmt.Errorf("pod has %s containers, but only %s frozen", containerIDs, frozen)
+		return frozen, method, fmt.Errorf("pod has %s containers, but only %s frozen", containerIDs, frozen)
 	}
-	return nil
+	return frozen, method, nil
 }
 
 // Thaw thaws the user container(s) frozen via the Freeze method.
-func (f *Containerd) Thaw(ctx context.Context, podName string) error {
+func (f *Containerd) Thaw(ctx context.Context, podName string) ([]string, string, error) {
+	var thawed []string
+	method := "thaw"
 	ctrd, err := containerd.NewWithConn(f.conn)
 	if err != nil {
-		return err
+		return thawed, method, err
 	}
 
 	containers, err := f.containerd.List(ctx, f.conn, podName)
 	containerIDs, err := lookupContainerIDs(containers)
 	if err != nil {
-		return err
+		return thawed, method, err
 	}
 
-	var thawed []string
 	for _, c := range containerIDs {
 		if err := f.containerd.Resume(ctx, ctrd, c); err != nil {
-			return fmt.Errorf("%s not resumed: %v", c, err)
+			return thawed, method, fmt.Errorf("%s not resumed: %v", c, err)
 		}
 		thawed = append(thawed, c)
 	}
 	if !reflect.DeepEqual(thawed, containerIDs) {
-		return fmt.Errorf("pod has %s containers, but only %s thawed", containerIDs, thawed)
+		return thawed, method, fmt.Errorf("pod has %s containers, but only %s thawed", containerIDs, thawed)
 	}
-	return nil
+	return thawed, method, nil
 }
 
 type ContainerdCRI struct{}
