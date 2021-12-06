@@ -3,7 +3,6 @@ package containerd
 import (
 	"context"
 	"fmt"
-	"reflect"
 	"testing"
 
 	"github.com/containerd/containerd"
@@ -35,33 +34,17 @@ func (c *FakeContainerdCRI) List(ctx context.Context, conn *grpc.ClientConn, pod
 }
 
 func (c *FakeContainerdCRI) Pause(ctx context.Context, ctrd *containerd.Client, container string) error {
-	listContainers, _ := c.List(nil, nil, "")
-	containerIDs, err := lookupContainerIDs(listContainers)
-	if err != nil {
-		return fmt.Errorf("expected list of containers ids but got %w", err)
-	}
-	c.paused = containerIDs
+	c.paused = append(c.paused, container)
 	if c.method != "freeze" {
 		return fmt.Errorf("wrong method, expected: %s, got: %s", "freeze", c.method)
-	}
-	if !reflect.DeepEqual(c.paused, c.results) {
-		return fmt.Errorf("paused list wrong, expected: %s, got %s", c.results, c.paused)
 	}
 	return nil
 }
 
 func (c *FakeContainerdCRI) Resume(ctx context.Context, ctrd *containerd.Client, container string) error {
-	listContainers, _ := c.List(nil, nil, "")
-	containerIDs, err := lookupContainerIDs(listContainers)
-	if err != nil {
-		return fmt.Errorf("expected list of containers ids but got %w", err)
-	}
-	c.resumed = containerIDs
+	c.resumed = append(c.resumed, container)
 	if c.method != "thaw" {
 		return fmt.Errorf("wrong method, expected: %s, got: %s", "freeze", c.method)
-	}
-	if !reflect.DeepEqual(c.resumed, c.results) {
-		return fmt.Errorf("resumed list wrong, expected: %s, got %s", c.results, c.resumed)
 	}
 	return nil
 }

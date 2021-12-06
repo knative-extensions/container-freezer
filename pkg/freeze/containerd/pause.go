@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"reflect"
 	"time"
 
 	"github.com/containerd/containerd"
@@ -50,7 +51,7 @@ func New(c CRI) (*Containerd, error) {
 	}, nil
 }
 
-// Freeze freezes the user container via the freezer cgroup.
+// Freeze freezes the user container(s) via the freezer cgroup.
 func (f *Containerd) Freeze(ctx context.Context, podName string) error {
 	ctrd, err := containerd.NewWithConn(f.conn)
 	if err != nil {
@@ -63,15 +64,20 @@ func (f *Containerd) Freeze(ctx context.Context, podName string) error {
 		return err
 	}
 
+	var frozen []string
 	for _, c := range containerIDs {
 		if err := f.containerd.Pause(ctx, ctrd, c); err != nil {
 			return fmt.Errorf("%s not paused: %v", c, err)
 		}
+		frozen = append(frozen, c)
+	}
+	if reflect.DeepEqual(frozen, containerIDs) {
+		return fmt.Errorf("pod has %s containers, but only %s frozen", containerIDs, frozen)
 	}
 	return nil
 }
 
-// Thaw thats a container which was freezed via the Freeze method.
+// Thaw thaws the user container(s) frozen via the Freeze method.
 func (f *Containerd) Thaw(ctx context.Context, podName string) error {
 	ctrd, err := containerd.NewWithConn(f.conn)
 	if err != nil {
@@ -84,10 +90,15 @@ func (f *Containerd) Thaw(ctx context.Context, podName string) error {
 		return err
 	}
 
+	var thawed []string
 	for _, c := range containerIDs {
 		if err := f.containerd.Resume(ctx, ctrd, c); err != nil {
 			return fmt.Errorf("%s not resumed: %v", c, err)
 		}
+		thawed = append(thawed, c)
+	}
+	if !reflect.DeepEqual(thawed, containerIDs) {
+		return fmt.Errorf("pod has %s containers, but only %s thawed", containerIDs, thawed)
 	}
 	return nil
 }
