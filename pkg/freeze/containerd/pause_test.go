@@ -12,12 +12,6 @@ import (
 	"knative.dev/container-freezer/pkg/daemon"
 )
 
-var (
-	containers []*cri.Container
-	results    []string
-	method     string
-)
-
 type FakeContainerdCRI struct {
 	paused     []string
 	resumed    []string
@@ -48,7 +42,7 @@ func (c *FakeContainerdCRI) Pause(ctx context.Context, ctrd *containerd.Client, 
 	}
 	c.paused = containerIDs
 	if c.method != "freeze" {
-		return fmt.Errorf("wrong method, expected: %s, got: %s", "freeze", method)
+		return fmt.Errorf("wrong method, expected: %s, got: %s", "freeze", c.method)
 	}
 	if !reflect.DeepEqual(c.paused, c.results) {
 		return fmt.Errorf("paused list wrong, expected: %s, got %s", c.results, c.paused)
@@ -64,7 +58,7 @@ func (c *FakeContainerdCRI) Resume(ctx context.Context, ctrd *containerd.Client,
 	}
 	c.resumed = containerIDs
 	if c.method != "thaw" {
-		return fmt.Errorf("wrong method, expected: %s, got: %s", "freeze", method)
+		return fmt.Errorf("wrong method, expected: %s, got: %s", "freeze", c.method)
 	}
 	if !reflect.DeepEqual(c.resumed, c.results) {
 		return fmt.Errorf("resumed list wrong, expected: %s, got %s", c.results, c.resumed)
