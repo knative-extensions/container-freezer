@@ -50,35 +50,35 @@ func TestContainerPause(t *testing.T) {
 	var err error
 
 	tests := []struct {
-		containers []*cri.Container
-		results    []string
-		method     string
+		containers    []*cri.Container
+		expectedPause []string
+		method        string
 	}{{
-		containers: []*cri.Container{Container("queueproxy", "queue-proxy"), Container("usercontainer", "user-container")},
-		results:    []string{"usercontainer"},
-		method:     "freeze",
+		containers:    []*cri.Container{Container("queueproxy", "queue-proxy"), Container("usercontainer", "user-container")},
+		expectedPause: []string{"usercontainer"},
+		method:        "freeze",
 	}, {
 		containers: []*cri.Container{
 			Container("queueproxy", "queue-proxy"),
 			Container("usercontainer", "user-container"),
 			Container("usercontainer2", "user-container2"),
 		},
-		results: []string{"usercontainer", "usercontainer2"},
-		method:  "freeze",
+		expectedPause: []string{"usercontainer", "usercontainer2"},
+		method:        "freeze",
 	}}
 	for _, c := range tests {
 		fakeFreezeThawer, err = New(&FakeContainerdCRI{
 			paused:     nil,
 			containers: c.containers,
-			results:    c.results,
+			results:    c.expectedPause,
 			method:     c.method,
 		})
 		if err != nil {
 			t.Errorf("expected New() to succeed but got %q", err)
 		}
 		pods, method, err := fakeFreezeThawer.Freeze(nil, "")
-		if !reflect.DeepEqual(pods, c.results) {
-			t.Errorf("pod has %s containers, but only %s frozen", c.results, pods)
+		if !reflect.DeepEqual(pods, c.expectedPause) {
+			t.Errorf("pod has %s containers, but only %s frozen", c.expectedPause, pods)
 		}
 		if method != c.method {
 			t.Errorf("wrong method, expected: %s, got: %s", c.method, method)
@@ -94,35 +94,35 @@ func TestContainerResume(t *testing.T) {
 	var err error
 
 	tests := []struct {
-		containers []*cri.Container
-		results    []string
-		method     string
+		containers     []*cri.Container
+		expectedResume []string
+		method         string
 	}{{
-		containers: []*cri.Container{Container("queueproxy", "queue-proxy"), Container("usercontainer", "user-container")},
-		results:    []string{"usercontainer"},
-		method:     "thaw",
+		containers:     []*cri.Container{Container("queueproxy", "queue-proxy"), Container("usercontainer", "user-container")},
+		expectedResume: []string{"usercontainer"},
+		method:         "thaw",
 	}, {
 		containers: []*cri.Container{
 			Container("queueproxy", "queue-proxy"),
 			Container("usercontainer", "user-container"),
 			Container("usercontainer2", "user-container2"),
 		},
-		results: []string{"usercontainer", "usercontainer2"},
-		method:  "thaw",
+		expectedResume: []string{"usercontainer", "usercontainer2"},
+		method:         "thaw",
 	}}
 	for _, c := range tests {
 		fakeFreezeThawer, err = New(&FakeContainerdCRI{
 			resumed:    nil,
 			containers: c.containers,
-			results:    c.results,
+			results:    c.expectedResume,
 			method:     c.method,
 		})
 		if err != nil {
 			t.Errorf("expected New() to succeed but got %q", err)
 		}
 		pods, method, err := fakeFreezeThawer.Thaw(nil, "")
-		if !reflect.DeepEqual(pods, c.results) {
-			t.Errorf("pod has %s containers, but only %s thawed", c.results, pods)
+		if !reflect.DeepEqual(pods, c.expectedResume) {
+			t.Errorf("pod has %s containers, but only %s thawed", c.expectedResume, pods)
 		}
 		if method != c.method {
 			t.Errorf("wrong method, expected: %s, got: %s", c.method, method)
