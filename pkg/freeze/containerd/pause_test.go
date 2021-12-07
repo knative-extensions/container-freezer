@@ -29,17 +29,19 @@ func Container(id, name string) *cri.Container {
 	}
 }
 
-func (c *FakeContainerdCRI) List(ctx context.Context, conn *grpc.ClientConn, podUID string) (*cri.ListContainersResponse, error) {
-	return &cri.ListContainersResponse{Containers: c.containers}, nil
+func (f *FakeContainerdCRI) List(ctx context.Context, conn *grpc.ClientConn, podUID string) (*cri.ListContainersResponse, error) {
+	return &cri.ListContainersResponse{Containers: f.containers}, nil
 }
 
-func (c *FakeContainerdCRI) Pause(ctx context.Context, ctrd *containerd.Client, container string) error {
-	c.paused = append(c.paused, container)
+func (f *FakeContainerdCRI) Pause(ctx context.Context, ctrd *containerd.Client, container string) error {
+	f.paused = append(f.paused, container)
+	f.method = "pause"
 	return nil
 }
 
-func (c *FakeContainerdCRI) Resume(ctx context.Context, ctrd *containerd.Client, container string) error {
-	c.resumed = append(c.resumed, container)
+func (f *FakeContainerdCRI) Resume(ctx context.Context, ctrd *containerd.Client, container string) error {
+	f.resumed = append(f.resumed, container)
+	f.method = "resume"
 	return nil
 }
 
