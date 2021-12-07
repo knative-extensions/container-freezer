@@ -146,12 +146,12 @@ func TestHandler(t *testing.T) {
 
 type FreezeFunc func(ctx context.Context, podName string) error
 
-func (fn FreezeFunc) Freeze(ctx context.Context, podName string) ([]string, string, error) {
-	return nil, "", fn(ctx, podName)
+func (fn FreezeFunc) Freeze(ctx context.Context, podName string) error {
+	return fn(ctx, podName)
 }
 
 type ThawFunc func(ctx context.Context, podName string) error
 
-func (fn ThawFunc) Thaw(ctx context.Context, podName string) ([]string, string, error) {
-	return nil, "", fn(ctx, podName)
+func (fn ThawFunc) Thaw(ctx context.Context, podName string) error {
+	return fn(ctx, podName)
 }
