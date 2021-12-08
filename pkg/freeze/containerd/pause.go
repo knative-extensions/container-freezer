@@ -26,6 +26,7 @@ type CRI interface {
 // Containerd freezes and unfreezes containers via containerd.
 type Containerd struct {
 	conn       *grpc.ClientConn
+	ctrd       *containerd.Client
 	containerd CRI
 }
 
@@ -44,19 +45,20 @@ func New(c CRI) (*Containerd, error) {
 		return nil, err
 	}
 
+	client, err := containerd.NewWithConn(conn)
+	if err != nil {
+		return nil, err
+	}
+
 	return &Containerd{
 		conn:       conn,
+		ctrd:       client,
 		containerd: c,
 	}, nil
 }
 
 // Freeze freezes the user container(s) via the freezer cgroup.
 func (f *Containerd) Freeze(ctx context.Context, podName string) error {
-	ctrd, err := containerd.NewWithConn(f.conn)
-	if err != nil {
-		return err
-	}
-
 	containers, err := f.containerd.List(ctx, f.conn, podName)
 	containerIDs, err := lookupContainerIDs(containers)
 	if err != nil {
@@ -64,7 +66,7 @@ func (f *Containerd) Freeze(ctx context.Context, podName string) error {
 	}
 
 	for _, c := range containerIDs {
-		if err := f.containerd.Pause(ctx, ctrd, c); err != nil {
+		if err := f.containerd.Pause(ctx, f.ctrd, c); err != nil {
 			return fmt.Errorf("%s not paused: %v", c, err)
 		}
 	}
@@ -73,11 +75,6 @@ func (f *Containerd) Freeze(ctx context.Context, podName string) error {
 
 // Thaw thaws the user container(s) frozen via the Freeze method.
 func (f *Containerd) Thaw(ctx context.Context, podName string) error {
-	ctrd, err := containerd.NewWithConn(f.conn)
-	if err != nil {
-		return err
-	}
-
 	containers, err := f.containerd.List(ctx, f.conn, podName)
 	containerIDs, err := lookupContainerIDs(containers)
 	if err != nil {
@@ -85,7 +82,7 @@ func (f *Containerd) Thaw(ctx context.Context, podName string) error {
 	}
 
 	for _, c := range containerIDs {
-		if err := f.containerd.Resume(ctx, ctrd, c); err != nil {
+		if err := f.containerd.Resume(ctx, f.ctrd, c); err != nil {
 			return fmt.Errorf("%s not resumed: %v", c, err)
 		}
 	}
