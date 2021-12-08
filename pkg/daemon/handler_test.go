@@ -114,11 +114,11 @@ func TestHandler(t *testing.T) {
 
 					return resp, nil
 				}),
-				Freezer: FreezeFunc(func(_ context.Context, podName, containerName string) error {
+				Freezer: FreezeFunc(func(_ context.Context, podName string) error {
 					froze = podName
 					return nil
 				}),
-				Thawer: ThawFunc(func(_ context.Context, podName, containerName string) error {
+				Thawer: ThawFunc(func(_ context.Context, podName string) error {
 					thawed = podName
 					return nil
 				}),
@@ -144,14 +144,14 @@ func TestHandler(t *testing.T) {
 	}
 }
 
-type FreezeFunc func(ctx context.Context, podName, containerName string) error
+type FreezeFunc func(ctx context.Context, podName string) error
 
-func (fn FreezeFunc) Freeze(ctx context.Context, podName, containerName string) error {
-	return fn(ctx, podName, containerName)
+func (fn FreezeFunc) Freeze(ctx context.Context, podName string) error {
+	return fn(ctx, podName)
 }
 
-type ThawFunc func(ctx context.Context, podName, containerName string) error
+type ThawFunc func(ctx context.Context, podName string) error
 
-func (fn ThawFunc) Thaw(ctx context.Context, podName, containerName string) error {
-	return fn(ctx, podName, containerName)
+func (fn ThawFunc) Thaw(ctx context.Context, podName string) error {
+	return fn(ctx, podName)
 }
