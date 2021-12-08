@@ -5,8 +5,6 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/containerd/containerd"
-	"google.golang.org/grpc"
 	cri "k8s.io/cri-api/pkg/apis/runtime/v1alpha2"
 	"knative.dev/container-freezer/pkg/daemon"
 )
@@ -28,7 +26,7 @@ func Container(id, name string) *cri.Container {
 	}
 }
 
-func (f *FakeContainerdCRI) List(ctx context.Context, conn *grpc.ClientConn, podUID string) ([]string, error) {
+func (f *FakeContainerdCRI) List(ctx context.Context, podUID string) ([]string, error) {
 	var containerList []string
 	for _, c := range f.containers {
 		if c.Metadata.Name != "queue-proxy" {
@@ -38,13 +36,13 @@ func (f *FakeContainerdCRI) List(ctx context.Context, conn *grpc.ClientConn, pod
 	return containerList, nil
 }
 
-func (f *FakeContainerdCRI) Pause(ctx context.Context, ctrd *containerd.Client, container string) error {
+func (f *FakeContainerdCRI) Pause(ctx context.Context, container string) error {
 	f.paused = append(f.paused, container)
 	f.method = "pause"
 	return nil
 }
 
-func (f *FakeContainerdCRI) Resume(ctx context.Context, ctrd *containerd.Client, container string) error {
+func (f *FakeContainerdCRI) Resume(ctx context.Context, container string) error {
 	f.resumed = append(f.resumed, container)
 	f.method = "resume"
 	return nil
