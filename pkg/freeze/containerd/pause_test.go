@@ -28,8 +28,14 @@ func Container(id, name string) *cri.Container {
 	}
 }
 
-func (f *FakeContainerdCRI) List(ctx context.Context, conn *grpc.ClientConn, podUID string) (*cri.ListContainersResponse, error) {
-	return &cri.ListContainersResponse{Containers: f.containers}, nil
+func (f *FakeContainerdCRI) List(ctx context.Context, conn *grpc.ClientConn, podUID string) ([]string, error) {
+	var containerList []string
+	for _, c := range f.containers {
+		if c.Metadata.Name != "queue-proxy" {
+			containerList = append(containerList, c.Id)
+		}
+	}
+	return containerList, nil
 }
 
 func (f *FakeContainerdCRI) Pause(ctx context.Context, ctrd *containerd.Client, container string) error {

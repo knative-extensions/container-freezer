@@ -18,7 +18,7 @@ import (
 const defaultContainerdAddress = "/var/run/containerd/containerd.sock"
 
 type CRI interface {
-	List(ctx context.Context, conn *grpc.ClientConn, podUID string) (*cri.ListContainersResponse, error)
+	List(ctx context.Context, conn *grpc.ClientConn, podUID string) ([]string, error)
 	Pause(ctx context.Context, ctrd *containerd.Client, container string) error
 	Resume(ctx context.Context, ctrd *containerd.Client, container string) error
 }
@@ -59,8 +59,7 @@ func New(c CRI) (*Containerd, error) {
 
 // Freeze freezes the user container(s) via the freezer cgroup.
 func (f *Containerd) Freeze(ctx context.Context, podName string) error {
-	containers, err := f.containerd.List(ctx, f.conn, podName)
-	containerIDs, err := lookupContainerIDs(containers)
+	containerIDs, err := f.containerd.List(ctx, f.conn, podName)
 	if err != nil {
 		return err
 	}
@@ -75,8 +74,7 @@ func (f *Containerd) Freeze(ctx context.Context, podName string) error {
 
 // Thaw thaws the user container(s) frozen via the Freeze method.
 func (f *Containerd) Thaw(ctx context.Context, podName string) error {
-	containers, err := f.containerd.List(ctx, f.conn, podName)
-	containerIDs, err := lookupContainerIDs(containers)
+	containerIDs, err := f.containerd.List(ctx, f.conn, podName)
 	if err != nil {
 		return err
 	}
@@ -91,8 +89,8 @@ func (f *Containerd) Thaw(ctx context.Context, podName string) error {
 
 type ContainerdCRI struct{}
 
-// List returns all containers in a given pod
-func (c *ContainerdCRI) List(ctx context.Context, conn *grpc.ClientConn, podUID string) (*cri.ListContainersResponse, error) {
+// List returns a list of all non queue-proxy container IDs in a given pod
+func (c *ContainerdCRI) List(ctx context.Context, conn *grpc.ClientConn, podUID string) ([]string, error) {
 	client := cri.NewRuntimeServiceClient(conn)
 	pods, err := client.ListPodSandbox(context.Background(), &cri.ListPodSandboxRequest{
 		Filter: &cri.PodSandboxFilter{
@@ -117,7 +115,12 @@ func (c *ContainerdCRI) List(ctx context.Context, conn *grpc.ClientConn, podUID 
 		return nil, err
 	}
 
-	return ctrs, nil
+	containerIDs, err := lookupContainerIDs(ctrs)
+	if err != nil {
+		return nil, err
+	}
+
+	return containerIDs, nil
 }
 
 // Pause performs a pause action on a specific container
