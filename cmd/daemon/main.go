@@ -39,7 +39,7 @@ func main() {
 		if err != nil {
 			log.Fatalf("unable to create containerd cri: %v", err)
 		}
-		freezeThaw, err = containerd.New(ctrd)
+		freezeThaw = containerd.New(ctrd)
 		// TODO support docker, crio
 	default:
 		log.Fatal("unrecognised runtimeType", runtimeType)

@@ -32,8 +32,8 @@ var ErrNoNonQueueProxyPods = errors.New("no non queue-proxy containers found in 
 
 // New return a FreezeThawer based on Containerd.
 // Requires /var/run/containerd/containerd.sock to be mounted.
-func New(c CRI) (*Containerd, error) {
-	return &Containerd{cri: c}, nil
+func New(c CRI) *Containerd {
+	return &Containerd{cri: c}
 }
 
 // NewCRI returns a CRI based on Containerd.

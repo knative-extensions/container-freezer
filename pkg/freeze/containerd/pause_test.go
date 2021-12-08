@@ -50,7 +50,6 @@ func (f *FakeContainerdCRI) Resume(ctx context.Context, container string) error 
 
 func TestContainerPause(t *testing.T) {
 	var fakeFreezeThawer daemon.FreezeThawer
-	var err error
 
 	tests := []struct {
 		containers    []*cri.Container
@@ -71,10 +70,7 @@ func TestContainerPause(t *testing.T) {
 			paused:     nil,
 			containers: c.containers,
 		}
-		fakeFreezeThawer, err = New(fakeContainerCRI)
-		if err != nil {
-			t.Errorf("expected New() to succeed but got %q", err)
-		}
+		fakeFreezeThawer = New(fakeContainerCRI)
 		if err := fakeFreezeThawer.Freeze(nil, ""); err != nil {
 			t.Errorf("expected freeze to succeed but failed: %v", err)
 		}
@@ -89,7 +85,6 @@ func TestContainerPause(t *testing.T) {
 
 func TestContainerResume(t *testing.T) {
 	var fakeFreezeThawer daemon.FreezeThawer
-	var err error
 
 	tests := []struct {
 		containers     []*cri.Container
@@ -110,10 +105,7 @@ func TestContainerResume(t *testing.T) {
 			resumed:    nil,
 			containers: c.containers,
 		}
-		fakeFreezeThawer, err = New(fakeContainerdCRI)
-		if err != nil {
-			t.Errorf("expected New() to succeed but got %q", err)
-		}
+		fakeFreezeThawer = New(fakeContainerdCRI)
 		if err := fakeFreezeThawer.Thaw(nil, ""); err != nil {
 			t.Errorf("expected thaw to succeed but failed: %v", err)
 		}
