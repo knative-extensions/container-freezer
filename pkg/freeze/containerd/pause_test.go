@@ -5,8 +5,6 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/containerd/containerd"
-	"google.golang.org/grpc"
 	cri "k8s.io/cri-api/pkg/apis/runtime/v1alpha2"
 	"knative.dev/container-freezer/pkg/daemon"
 )
@@ -28,17 +26,23 @@ func Container(id, name string) *cri.Container {
 	}
 }
 
-func (f *FakeContainerdCRI) List(ctx context.Context, conn *grpc.ClientConn, podUID string) (*cri.ListContainersResponse, error) {
-	return &cri.ListContainersResponse{Containers: f.containers}, nil
+func (f *FakeContainerdCRI) List(ctx context.Context, podUID string) ([]string, error) {
+	var containerList []string
+	for _, c := range f.containers {
+		if c.Metadata.Name != "queue-proxy" {
+			containerList = append(containerList, c.Id)
+		}
+	}
+	return containerList, nil
 }
 
-func (f *FakeContainerdCRI) Pause(ctx context.Context, ctrd *containerd.Client, container string) error {
+func (f *FakeContainerdCRI) Pause(ctx context.Context, container string) error {
 	f.paused = append(f.paused, container)
 	f.method = "pause"
 	return nil
 }
 
-func (f *FakeContainerdCRI) Resume(ctx context.Context, ctrd *containerd.Client, container string) error {
+func (f *FakeContainerdCRI) Resume(ctx context.Context, container string) error {
 	f.resumed = append(f.resumed, container)
 	f.method = "resume"
 	return nil
@@ -46,7 +50,6 @@ func (f *FakeContainerdCRI) Resume(ctx context.Context, ctrd *containerd.Client,
 
 func TestContainerPause(t *testing.T) {
 	var fakeFreezeThawer daemon.FreezeThawer
-	var err error
 
 	tests := []struct {
 		containers    []*cri.Container
@@ -67,10 +70,7 @@ func TestContainerPause(t *testing.T) {
 			paused:     nil,
 			containers: c.containers,
 		}
-		fakeFreezeThawer, err = New(fakeContainerCRI)
-		if err != nil {
-			t.Errorf("expected New() to succeed but got %q", err)
-		}
+		fakeFreezeThawer = New(fakeContainerCRI)
 		if err := fakeFreezeThawer.Freeze(nil, ""); err != nil {
 			t.Errorf("expected freeze to succeed but failed: %v", err)
 		}
@@ -85,7 +85,6 @@ func TestContainerPause(t *testing.T) {
 
 func TestContainerResume(t *testing.T) {
 	var fakeFreezeThawer daemon.FreezeThawer
-	var err error
 
 	tests := []struct {
 		containers     []*cri.Container
@@ -106,10 +105,7 @@ func TestContainerResume(t *testing.T) {
 			resumed:    nil,
 			containers: c.containers,
 		}
-		fakeFreezeThawer, err = New(fakeContainerdCRI)
-		if err != nil {
-			t.Errorf("expected New() to succeed but got %q", err)
-		}
+		fakeFreezeThawer = New(fakeContainerdCRI)
 		if err := fakeFreezeThawer.Thaw(nil, ""); err != nil {
 			t.Errorf("expected thaw to succeed but failed: %v", err)
 		}

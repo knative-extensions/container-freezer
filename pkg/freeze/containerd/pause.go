@@ -18,22 +18,26 @@ import (
 const defaultContainerdAddress = "/var/run/containerd/containerd.sock"
 
 type CRI interface {
-	List(ctx context.Context, conn *grpc.ClientConn, podUID string) (*cri.ListContainersResponse, error)
-	Pause(ctx context.Context, ctrd *containerd.Client, container string) error
-	Resume(ctx context.Context, ctrd *containerd.Client, container string) error
+	List(ctx context.Context, podUID string) ([]string, error)
+	Pause(ctx context.Context, container string) error
+	Resume(ctx context.Context, container string) error
 }
 
 // Containerd freezes and unfreezes containers via containerd.
 type Containerd struct {
-	conn       *grpc.ClientConn
-	containerd CRI
+	cri CRI
 }
 
 var ErrNoNonQueueProxyPods = errors.New("no non queue-proxy containers found in pod")
 
 // New return a FreezeThawer based on Containerd.
 // Requires /var/run/containerd/containerd.sock to be mounted.
-func New(c CRI) (*Containerd, error) {
+func New(c CRI) *Containerd {
+	return &Containerd{cri: c}
+}
+
+// NewCRI returns a CRI based on Containerd.
+func NewCRI() (*ContainerdCRI, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
@@ -44,27 +48,22 @@ func New(c CRI) (*Containerd, error) {
 		return nil, err
 	}
 
-	return &Containerd{
-		conn:       conn,
-		containerd: c,
-	}, nil
+	client, err := containerd.NewWithConn(conn)
+	if err != nil {
+		return nil, err
+	}
+	return &ContainerdCRI{conn: conn, ctrd: client}, nil
 }
 
 // Freeze freezes the user container(s) via the freezer cgroup.
 func (f *Containerd) Freeze(ctx context.Context, podName string) error {
-	ctrd, err := containerd.NewWithConn(f.conn)
-	if err != nil {
-		return err
-	}
-
-	containers, err := f.containerd.List(ctx, f.conn, podName)
-	containerIDs, err := lookupContainerIDs(containers)
+	containerIDs, err := f.cri.List(ctx, podName)
 	if err != nil {
 		return err
 	}
 
 	for _, c := range containerIDs {
-		if err := f.containerd.Pause(ctx, ctrd, c); err != nil {
+		if err := f.cri.Pause(ctx, c); err != nil {
 			return fmt.Errorf("%s not paused: %v", c, err)
 		}
 	}
@@ -73,30 +72,27 @@ func (f *Containerd) Freeze(ctx context.Context, podName string) error {
 
 // Thaw thaws the user container(s) frozen via the Freeze method.
 func (f *Containerd) Thaw(ctx context.Context, podName string) error {
-	ctrd, err := containerd.NewWithConn(f.conn)
-	if err != nil {
-		return err
-	}
-
-	containers, err := f.containerd.List(ctx, f.conn, podName)
-	containerIDs, err := lookupContainerIDs(containers)
+	containerIDs, err := f.cri.List(ctx, podName)
 	if err != nil {
 		return err
 	}
 
 	for _, c := range containerIDs {
-		if err := f.containerd.Resume(ctx, ctrd, c); err != nil {
+		if err := f.cri.Resume(ctx, c); err != nil {
 			return fmt.Errorf("%s not resumed: %v", c, err)
 		}
 	}
 	return nil
 }
 
-type ContainerdCRI struct{}
+type ContainerdCRI struct {
+	conn *grpc.ClientConn
+	ctrd *containerd.Client
+}
 
-// List returns all containers in a given pod
-func (c *ContainerdCRI) List(ctx context.Context, conn *grpc.ClientConn, podUID string) (*cri.ListContainersResponse, error) {
-	client := cri.NewRuntimeServiceClient(conn)
+// List returns a list of all non queue-proxy container IDs in a given pod
+func (c *ContainerdCRI) List(ctx context.Context, podUID string) ([]string, error) {
+	client := cri.NewRuntimeServiceClient(c.conn)
 	pods, err := client.ListPodSandbox(context.Background(), &cri.ListPodSandboxRequest{
 		Filter: &cri.PodSandboxFilter{
 			LabelSelector: map[string]string{
@@ -120,22 +116,27 @@ func (c *ContainerdCRI) List(ctx context.Context, conn *grpc.ClientConn, podUID 
 		return nil, err
 	}
 
-	return ctrs, nil
+	containerIDs, err := lookupContainerIDs(ctrs)
+	if err != nil {
+		return nil, err
+	}
+
+	return containerIDs, nil
 }
 
 // Pause performs a pause action on a specific container
-func (c *ContainerdCRI) Pause(ctx context.Context, ctrd *containerd.Client, container string) error {
+func (c *ContainerdCRI) Pause(ctx context.Context, container string) error {
 	ctx = namespaces.WithNamespace(ctx, "k8s.io")
-	if _, err := ctrd.TaskService().Pause(ctx, &tasks.PauseTaskRequest{ContainerID: container}); err != nil {
+	if _, err := c.ctrd.TaskService().Pause(ctx, &tasks.PauseTaskRequest{ContainerID: container}); err != nil {
 		return fmt.Errorf("%s not paused: %v", container, err)
 	}
 	return nil
 }
 
 // Resume performs a resume action on a specific container
-func (c *ContainerdCRI) Resume(ctx context.Context, ctrd *containerd.Client, container string) error {
+func (c *ContainerdCRI) Resume(ctx context.Context, container string) error {
 	ctx = namespaces.WithNamespace(ctx, "k8s.io")
-	if _, err := ctrd.TaskService().Resume(ctx, &tasks.ResumeTaskRequest{ContainerID: container}); err != nil {
+	if _, err := c.ctrd.TaskService().Resume(ctx, &tasks.ResumeTaskRequest{ContainerID: container}); err != nil {
 		return fmt.Errorf("%s not resumed: %v", container, err)
 	}
 	return nil
