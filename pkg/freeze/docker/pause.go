@@ -80,14 +80,13 @@ func (d *DockerCRI) List(ctx context.Context, podUID string) ([]string, error) {
 	}
 
 	for _, c := range containers {
-		if c.Names[0] != "queue-proxy" {
+		if c.Labels["io.kubernetes.container.name"] != "queue-proxy" && c.Labels["io.kubernetes.container.name"] != "POD" {
 			containerIDs = append(containerIDs, c.ID)
 		}
 	}
 	if len(containerIDs) == 0 {
 		return nil, ErrNoNonQueueProxyPods
 	}
-
 	return containerIDs, nil
 }
 
