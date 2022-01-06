@@ -10,30 +10,29 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 
+	"knative.dev/container-freezer/pkg/api"
 	"knative.dev/container-freezer/pkg/daemon"
 	"knative.dev/container-freezer/pkg/freeze/containerd"
 	pkglogging "knative.dev/pkg/logging"
 )
 
-const runtimeTypeContainerd string = "containerd"
-
 func main() {
 	logger, _ := pkglogging.NewLogger("", "") // TODO read from envvar
-	runtimeType := runtimeTypeContainerd      // TODO read from envvar
+	runtimeType := api.RuntimeTypeContainerd  // TODO read from envvar
 
 	config, err := rest.InClusterConfig()
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	clientset, err := kubernetes.NewForConfig(config)
+	clientSet, err := kubernetes.NewForConfig(config)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	var freezeThaw daemon.FreezeThawer
 	switch runtimeType {
-	case runtimeTypeContainerd:
+	case api.RuntimeTypeContainerd:
 		logger.Info("creating new containerd freezeThawer")
 		ctrd, err := containerd.NewCRI()
 		if err != nil {
@@ -53,7 +52,7 @@ func main() {
 		Thawer:  freezeThaw,
 		Logger:  logger,
 		Validator: daemon.TokenValidatorFunc(func(ctx context.Context, token string) (*authv1.TokenReview, error) {
-			return clientset.AuthenticationV1().TokenReviews().Create(ctx, &authv1.TokenReview{
+			return clientSet.AuthenticationV1().TokenReviews().Create(ctx, &authv1.TokenReview{
 				Spec: authv1.TokenReviewSpec{
 					Token: token,
 					Audiences: []string{
