@@ -2,8 +2,12 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
+	"os"
+
+	"github.com/kelseyhightower/envconfig"
 
 	authv1 "k8s.io/api/authentication/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -17,9 +21,24 @@ import (
 
 const runtimeTypeContainerd string = "containerd"
 
+type config struct {
+	RuntimeType string `split_words:"true" required:"true"`
+
+	// Logging configuration
+	FreezerLoggingConfig string `split_words:"true"`
+	FreezerLoggingLevel  string `split_words:"true"`
+}
+
 func main() {
-	logger, _ := pkglogging.NewLogger("", "") // TODO read from envvar
-	runtimeType := runtimeTypeContainerd      // TODO read from envvar
+	// Parse the environment.
+	var env config
+	if err := envconfig.Process("", &env); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+
+	logger, _ := pkglogging.NewLogger(env.FreezerLoggingConfig, env.FreezerLoggingLevel)
+	runtimeType := env.RuntimeType
 
 	config, err := rest.InClusterConfig()
 	if err != nil {
