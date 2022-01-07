@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: freeze-configmap
+  namespace: knative-serving
+data:
+  runtime-type: containerd
+  freezer-logging-config: ""
+  freezer-logging-level: ""
