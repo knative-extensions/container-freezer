@@ -22,11 +22,20 @@ spec:
           image: ko://knative.dev/container-freezer/cmd/daemon
           env:
             - name: RUNTIME_TYPE
-              value: containerd
+              valueFrom:
+                configMapKeyRef:
+                  name: freeze-configmap
+                  key: runtime-type
             - name: FREEZER_LOGGING_CONFIG
-              value: ""
+              valueFrom:
+                configMapKeyRef:
+                  name: freeze-configmap
+                  key: freezer-logging-config
             - name: FREEZER_LOGGING_LEVEL
-              value: ""
+              valueFrom:
+                configMapKeyRef:
+                  name: freeze-configmap
+                  key: freezer-logging-level
           ports:
             - containerPort: 8080
               hostPort: 9696
