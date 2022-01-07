@@ -23,6 +23,10 @@ spec:
           env:
             - name: RUNTIME_TYPE
               value: containerd
+            - name: FREEZER_LOGGING_CONFIG
+              value: ""
+            - name: FREEZER_LOGGING_LEVEL
+              value: ""
           ports:
             - containerPort: 8080
               hostPort: 9696
