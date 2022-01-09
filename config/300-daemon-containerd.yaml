@@ -22,10 +22,7 @@ spec:
           image: ko://knative.dev/container-freezer/cmd/daemon
           env:
             - name: RUNTIME_TYPE
-              valueFrom:
-                configMapKeyRef:
-                  name: freeze-configmap
-                  key: runtime-type
+              value: containerd
             - name: FREEZER_LOGGING_CONFIG
               valueFrom:
                 configMapKeyRef:

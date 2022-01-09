@@ -2,7 +2,6 @@ package containerd
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net"
 	"time"
@@ -11,28 +10,21 @@ import (
 	"github.com/containerd/containerd/api/services/tasks/v1"
 	"github.com/containerd/containerd/namespaces"
 	"google.golang.org/grpc"
-
 	cri "k8s.io/cri-api/pkg/apis/runtime/v1alpha2"
+	
+	"knative.dev/container-freezer/pkg/api"
 )
 
 const defaultContainerdAddress = "/var/run/containerd/containerd.sock"
 
-type CRI interface {
-	List(ctx context.Context, podUID string) ([]string, error)
-	Pause(ctx context.Context, container string) error
-	Resume(ctx context.Context, container string) error
-}
-
 // Containerd freezes and unfreezes containers via containerd.
 type Containerd struct {
-	cri CRI
+	cri api.CRI
 }
-
-var ErrNoNonQueueProxyPods = errors.New("no non queue-proxy containers found in pod")
 
 // New return a FreezeThawer based on Containerd.
 // Requires /var/run/containerd/containerd.sock to be mounted.
-func New(c CRI) *Containerd {
+func New(c api.CRI) *Containerd {
 	return &Containerd{cri: c}
 }
 
@@ -150,7 +142,7 @@ func lookupContainerIDs(ctrs *cri.ListContainersResponse) ([]string, error) {
 		}
 	}
 	if len(ids) == 0 {
-		return nil, ErrNoNonQueueProxyPods
+		return nil, api.ErrNoNonQueueProxyPods
 	}
 	return ids, nil
 }

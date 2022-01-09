@@ -16,17 +16,22 @@ import (
 
 	"knative.dev/container-freezer/pkg/daemon"
 	"knative.dev/container-freezer/pkg/freeze/containerd"
+	"knative.dev/container-freezer/pkg/freeze/docker"
 	pkglogging "knative.dev/pkg/logging"
 )
 
-const runtimeTypeContainerd string = "containerd"
+const (
+	runtimeTypeContainerd string = "containerd"
+	runtimeTypeDocker     string = "docker"
+)
 
 type config struct {
-	RuntimeType string `split_words:"true" required:"true"`
+	RuntimeType string `envconfig:"RUNTIME_TYPE" required:"true"`
+	DockerAPIVersion string `envconfig:"DOCKERAPI_VERSION" required:"false"`
 
 	// Logging configuration
-	FreezerLoggingConfig string `split_words:"true"`
-	FreezerLoggingLevel  string `split_words:"true"`
+	FreezerLoggingConfig string `envconfig:"FREEZER_LOGGING_CONFIG"`
+	FreezerLoggingLevel  string `envconfig:"FREEZER_LOGGING_LEVEL"`
 }
 
 func main() {
@@ -45,7 +50,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	clientset, err := kubernetes.NewForConfig(config)
+	clientSet, err := kubernetes.NewForConfig(config)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -59,7 +64,14 @@ func main() {
 			log.Fatalf("unable to create containerd cri: %v", err)
 		}
 		freezeThaw = containerd.New(ctrd)
-		// TODO support docker, crio
+	case runtimeTypeDocker:
+		logger.Info("creating new docker freezeThawer")
+		dcr, err := docker.NewCRI(env.DockerAPIVersion)
+		if err != nil {
+			log.Fatalf("unable to create docker cri: %v", err)
+		}
+		freezeThaw = docker.New(dcr)
+		// TODO support crio
 	default:
 		log.Fatal("unrecognised runtimeType", runtimeType)
 	}
@@ -72,7 +84,7 @@ func main() {
 		Thawer:  freezeThaw,
 		Logger:  logger,
 		Validator: daemon.TokenValidatorFunc(func(ctx context.Context, token string) (*authv1.TokenReview, error) {
-			return clientset.AuthenticationV1().TokenReviews().Create(ctx, &authv1.TokenReview{
+			return clientSet.AuthenticationV1().TokenReviews().Create(ctx, &authv1.TokenReview{
 				Spec: authv1.TokenReviewSpec{
 					Token: token,
 					Audiences: []string{

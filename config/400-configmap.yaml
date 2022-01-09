@@ -4,6 +4,6 @@ metadata:
   name: freeze-configmap
   namespace: knative-serving
 data:
-  runtime-type: containerd
+  docker-runtime-api-version: "1.41"
   freezer-logging-config: ""
   freezer-logging-level: ""
