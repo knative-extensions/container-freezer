@@ -66,10 +66,14 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch m.Action {
 	case "pause":
 		h.Logger.Infof("pause request received, freezing pod: %s", podUid)
-		h.Freezer.Freeze(r.Context(), podUid)
+		if err = h.Freezer.Freeze(r.Context(), podUid); err != nil {
+			h.Logger.Errorf("freezing pod %s failed: %v", podUid, err)
+		}
 	case "resume":
 		h.Logger.Infof("resume request received, thawing pod: %s", podUid)
-		h.Thawer.Thaw(r.Context(), podUid)
+		if err = h.Thawer.Thaw(r.Context(), podUid); err != nil {
+			h.Logger.Errorf("thawing pod %s failed: %v", podUid, err)
+		}
 	default:
 		h.Logger.Infof("invalid action specified: %s", m.Action)
 		w.WriteHeader(http.StatusNotFound)
