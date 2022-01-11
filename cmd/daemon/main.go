@@ -59,12 +59,9 @@ func main() {
 			log.Fatalf("unable to create containerd cri: %v", err)
 		}
 		freezeThaw = containerd.New(ctrd)
-		// TODO support docker, crio
+		// TODO support crio
 	default:
 		log.Fatal("unrecognised runtimeType", runtimeType)
-	}
-	if err != nil {
-		log.Fatal(err)
 	}
 
 	http.ListenAndServe(":8080", &daemon.Handler{
