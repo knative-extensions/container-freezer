@@ -104,7 +104,7 @@ github.com/containerd/typeurl
 github.com/davecgh/go-spew/spew
 # github.com/docker/go-events v0.0.0-20190806004212-e31b211e4f1c
 github.com/docker/go-events
-# github.com/go-logr/logr v0.4.0
+# github.com/go-logr/logr v1.2.2
 github.com/go-logr/logr
 # github.com/gogo/googleapis v1.4.0
 github.com/gogo/googleapis/google/rpc
@@ -513,14 +513,14 @@ k8s.io/client-go/util/workqueue
 # k8s.io/cri-api v0.21.4
 ## explicit
 k8s.io/cri-api/pkg/apis/runtime/v1alpha2
-# k8s.io/klog/v2 v2.9.0
+# k8s.io/klog/v2 v2.40.1
 k8s.io/klog/v2
 # k8s.io/utils v0.0.0-20210819203725-bdf08cb9a70a
 k8s.io/utils/integer
-# knative.dev/hack v0.0.0-20220110200259-f08cb0dcdee7
+# knative.dev/hack v0.0.0-20220111151514-59b0cf17578e
 ## explicit
 knative.dev/hack
-# knative.dev/pkg v0.0.0-20220111134415-80b253f23023
+# knative.dev/pkg v0.0.0-20220112074250-c568527ffc5b
 ## explicit
 knative.dev/pkg/changeset
 knative.dev/pkg/logging
