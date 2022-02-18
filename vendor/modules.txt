@@ -520,7 +520,7 @@ k8s.io/utils/integer
 # knative.dev/hack v0.0.0-20220216040439-0456e8bf6547
 ## explicit
 knative.dev/hack
-# knative.dev/pkg v0.0.0-20220215153400-3c00bb0157b9
+# knative.dev/pkg v0.0.0-20220217155112-d48172451966
 ## explicit
 knative.dev/pkg/changeset
 knative.dev/pkg/logging
