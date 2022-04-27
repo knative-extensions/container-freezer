@@ -1,4 +1,4 @@
-package containerd
+package freeze
 
 import (
 	"context"
@@ -70,7 +70,7 @@ func TestContainerPause(t *testing.T) {
 			paused:     nil,
 			containers: c.containers,
 		}
-		fakeFreezeThawer = New(fakeContainerCRI)
+		fakeFreezeThawer = &CRIImpl{cri: fakeContainerCRI}
 		if err := fakeFreezeThawer.Freeze(nil, ""); err != nil {
 			t.Errorf("expected freeze to succeed but failed: %v", err)
 		}
@@ -105,7 +105,7 @@ func TestContainerResume(t *testing.T) {
 			resumed:    nil,
 			containers: c.containers,
 		}
-		fakeFreezeThawer = New(fakeContainerdCRI)
+		fakeFreezeThawer = &CRIImpl{cri: fakeContainerdCRI}
 		if err := fakeFreezeThawer.Thaw(nil, ""); err != nil {
 			t.Errorf("expected thaw to succeed but failed: %v", err)
 		}
