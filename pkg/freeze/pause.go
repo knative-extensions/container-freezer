@@ -4,9 +4,13 @@ import (
 	"context"
 	"fmt"
 
-	"knative.dev/container-freezer/pkg/freeze/common"
 	"knative.dev/container-freezer/pkg/freeze/containerd"
 	"knative.dev/container-freezer/pkg/freeze/crio"
+)
+
+const (
+	runtimeTypeContainerd = "containerd"
+	runtimeTypeCrio       = "crio"
 )
 
 type CRI interface {
@@ -23,14 +27,14 @@ func NewCRIProvider(runtimeType string) (*CRIImpl, error) {
 	criImpl := &CRIImpl{}
 
 	switch runtimeType {
-	case common.RuntimeTypeContainerd:
+	case runtimeTypeContainerd:
 		containerdImpl, err := containerd.NewContainerdProvider()
 		if err != nil {
 			return nil, err
 		}
 		criImpl.cri = containerdImpl
 		return criImpl, err
-	case common.RuntimeTypeCrio:
+	case runtimeTypeCrio:
 		crioImpl, err := crio.NewCrioProvider()
 		if err != nil {
 			return nil, err

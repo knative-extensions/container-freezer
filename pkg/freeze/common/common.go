@@ -9,11 +9,6 @@ import (
 	cri "k8s.io/cri-api/pkg/apis/runtime/v1alpha2"
 )
 
-const (
-	RuntimeTypeContainerd = "containerd"
-	RuntimeTypeCrio       = "crio"
-)
-
 var ErrNoNonQueueProxyPods = errors.New("no non queue-proxy containers found in pod")
 
 func List(ctx context.Context, conn *grpc.ClientConn, podUID string) ([]string, error) {
