@@ -202,11 +202,11 @@ func GetRandomSocketPath() string {
 	str := "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 	bytes := []byte(str)
 	result := []byte{}
-	rand.Seed(time.Now().UnixNano()+ int64(rand.Intn(100)))
+	rand.Seed(time.Now().UnixNano() + int64(rand.Intn(100)))
 	for i := 0; i < 8; i++ {
 		result = append(result, bytes[rand.Intn(len(bytes))])
 	}
-	return tmpSocketpath+string(result)+"-test.sock"
+	return tmpSocketpath + string(result) + "-test.sock"
 }
 
 func RunCriServer(c *CRIServer, socketPath string) {
