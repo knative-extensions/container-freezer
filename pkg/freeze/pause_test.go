@@ -117,3 +117,21 @@ func TestContainerResume(t *testing.T) {
 		}
 	}
 }
+
+func TestNewCRIProvider(t *testing.T) {
+	tests := []struct {
+		runtimeType string
+		expectError bool
+	}{
+		{runtimeType: runtimeTypeContainerd, expectError: false},
+		{runtimeType: runtimeTypeCrio, expectError: false},
+		{runtimeType: "none", expectError: true},
+	}
+	for _, v := range tests {
+		_, err := NewCRIProvider(v.runtimeType)
+		if (err != nil) != v.expectError {
+			t.Errorf("expect error exist:%v, but get:%v", v.expectError, err)
+		}
+	}
+
+}
