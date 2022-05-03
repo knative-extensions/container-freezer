@@ -2,8 +2,9 @@ package freeze
 
 import (
 	"context"
+	"errors"
 	"fmt"
-
+	"knative.dev/container-freezer/pkg/freeze/common"
 	"knative.dev/container-freezer/pkg/freeze/containerd"
 	"knative.dev/container-freezer/pkg/freeze/crio"
 )
@@ -49,6 +50,9 @@ func NewCRIProvider(runtimeType string) (*CRIImpl, error) {
 func (c *CRIImpl) Freeze(ctx context.Context, podName string) error {
 	containerIDs, err := c.cri.List(ctx, podName)
 	if err != nil {
+		if errors.Is(err, common.ErrNoNonQueueProxyPods) {
+			return nil
+		}
 		return err
 	}
 

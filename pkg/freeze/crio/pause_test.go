@@ -27,8 +27,8 @@ func runServerAndCreateProvider(ctx context.Context) (*CrioCRI, *test.CRIServer,
 	crioClient := test.NewCrioHttpClient(crioSocketPath)
 
 	provider := &CrioCRI{
-		conn: criGrpc,
-		crio: crioClient,
+		conn:       criGrpc,
+		crioClient: crioClient,
 	}
 
 	return provider, criServer, crioServer, nil

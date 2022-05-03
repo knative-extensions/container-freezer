@@ -34,12 +34,12 @@ func NewCrioProvider() (*CrioCRI, error) {
 		},
 	}
 
-	return &CrioCRI{conn: conn, crio: client}, nil
+	return &CrioCRI{conn: conn, crioClient: client}, nil
 }
 
 type CrioCRI struct {
-	conn *grpc.ClientConn
-	crio *http.Client
+	conn       *grpc.ClientConn
+	crioClient *http.Client
 }
 
 // List returns a list of all non queue-proxy container IDs in a given pod
@@ -50,7 +50,7 @@ func (c *CrioCRI) List(ctx context.Context, podUID string) ([]string, error) {
 
 // Pause performs a pause action on a specific container
 func (c *CrioCRI) Pause(ctx context.Context, container string) error {
-	resp, err := c.crio.Get("http://localhost/pause/" + container)
+	resp, err := c.crioClient.Get("http://localhost/pause/" + container)
 	if err != nil {
 		return fmt.Errorf("%s not paused: %v", container, err)
 	}
@@ -68,7 +68,7 @@ func (c *CrioCRI) Pause(ctx context.Context, container string) error {
 
 // Resume performs a resume action on a specific container
 func (c *CrioCRI) Resume(ctx context.Context, container string) error {
-	resp, err := c.crio.Get("http://localhost/unpause/" + container)
+	resp, err := c.crioClient.Get("http://localhost/unpause/" + container)
 	if err != nil {
 		return fmt.Errorf("%s not paused: %v", container, err)
 	}
