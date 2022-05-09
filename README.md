@@ -53,5 +53,5 @@ data:
 
 ## Sample application
 
-See the [sleeptalker](https://github.com/psschwei/sleeptalker) application. 
+See the [sleeptalker](https://github.com/psschwei/sleeptalker) application.
 
