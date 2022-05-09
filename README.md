@@ -7,6 +7,8 @@
 
 A standalone service for Knative to pause/unpause containers when request count drops to zero.
 
+**NOTE** It is highly recommended to disable aggressive probing on your application when using the container-freezer. This can be done by setting `periodSeconds: 0` on your application's readiness probe. See [here](https://github.com/psschwei/sleeptalker/blob/main/sleeptalker.yaml#L14-L15) for an example.
+
 ## Installation
 
 ### Install Knative Serving
@@ -51,5 +53,5 @@ data:
 
 ## Sample application
 
-TBD
+See the [sleeptalker](https://github.com/psschwei/sleeptalker) application.
 
