@@ -47,7 +47,7 @@ data:
   concurrency-state-endpoint: "http://$HOST_IP:9696"
 ```
 
-Alternatively, you can also patch the configmap using `kubectl`: 
+Alternatively, you can also patch the configmap using `kubectl`:
 
 ```bash
 kubectl patch configmap/config-deployment -n knative-serving --type merge -p '{"data":{"concurrencyStateEndpoint":"http://$HOST_IP:9696"}}'
