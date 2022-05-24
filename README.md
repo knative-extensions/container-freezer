@@ -38,10 +38,6 @@ cd container-freezer
 ko apply -f config/
 ```
 
-This will install the daemon for the container-freezer, the required permissions, and a service for the daemon. By default, the service has the endpoint http://freeze-service.knative-serving.svc.cluster.local:9696, which we'll need in the next step.
-
-Note: in the future, it will also be possible to install via `kubectl apply -f container-freezer.yaml`
-
 ### Enable concurrency endpoint in Knative Serving
 
 By default, Knative does not enable the freezing capability. We can enable it by providing a value for `concurrency-state-endpoint` in the Knative Serving [deployment configmap](https://github.com/knative/serving/blob/main/config/core/configmaps/deployment.yaml):
@@ -49,6 +45,12 @@ By default, Knative does not enable the freezing capability. We can enable it by
 ``` yaml
 data:
   concurrency-state-endpoint: "http://$HOST_IP:9696"
+```
+
+Alternatively, you can also patch the configmap using `kubectl`:
+
+```bash
+kubectl patch configmap/config-deployment -n knative-serving --type merge -p '{"data":{"concurrencyStateEndpoint":"http://$HOST_IP:9696"}}'
 ```
 
 ## Sample application
