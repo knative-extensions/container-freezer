@@ -38,8 +38,6 @@ cd container-freezer
 ko apply -f config/
 ```
 
-Note: in the future, it will also be possible to install via `kubectl apply -f container-freezer.yaml`
-
 ### Enable concurrency endpoint in Knative Serving
 
 By default, Knative does not enable the freezing capability. We can enable it by providing a value for `concurrency-state-endpoint` in the Knative Serving [deployment configmap](https://github.com/knative/serving/blob/main/config/core/configmaps/deployment.yaml):
