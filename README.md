@@ -3,7 +3,7 @@
 
 | STATUS | Sponsoring WG |
 | --- | --- |
-| Alpha | [Autoscaling](https://github.com/knative/community/blob/main/working-groups/WORKING-GROUPS.md#scaling)|
+| Alpha | [Serving](https://github.com/knative/community/blob/main/working-groups/WORKING-GROUPS.md#serving)|
 
 A standalone service for Knative to pause/unpause containers when request count drops to zero.
 
