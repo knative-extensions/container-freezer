@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: freeze-daemon-containerd
+  namespace: knative-serving
+spec:
+  selector:
+    matchLabels:
+      name: freeze-daemon-containerd
+  template:
+    metadata:
+      labels:
+        name: freeze-daemon-containerd
+    spec:
+      serviceAccountName: freeze-tokenreview
+      nodeSelector:
+        knative.dev/container-runtime: containerd
+      containers:
+        - name: daemon
+          securityContext:
+            runAsUser: 0
+          image: ko://knative.dev/container-freezer/cmd/daemon
+          env:
+            - name: RUNTIME_TYPE
+              value: "containerd"
+            - name: FREEZER_LOGGING_CONFIG
+              valueFrom:
+                configMapKeyRef:
+                  name: config-freezer
+                  key: freezer-logging-config
+            - name: FREEZER_LOGGING_LEVEL
+              valueFrom:
+                configMapKeyRef:
+                  name: config-freezer
+                  key: freezer-logging-level
+          ports:
+            - containerPort: 8080
+              hostPort: 9696
+          volumeMounts:
+            - name: containerd-socket
+              mountPath: /var/run/containerd/containerd.sock
+      volumes:
+        - name: containerd-socket
+          hostPath:
+            path: /var/run/containerd/containerd.sock
+            type: Socket

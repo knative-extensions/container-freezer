@@ -1,4 +1,4 @@
-package containerd
+package crio
 
 import (
 	"context"
@@ -6,19 +6,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/containerd/containerd"
-
 	"knative.dev/container-freezer/pkg/freeze/test"
 )
 
-func runServerAndCreateProvider(ctx context.Context) (*ContainerdCRI, *test.CRIServer, *test.CtrdServer, error) {
-	ctrdSever := test.NewCtrdRuntimeServer()
-	ctrdSocketPath := test.GetRandomSocketPath()
-	go test.RunCtrdServer(ctrdSever, ctrdSocketPath)
-
-	criServer := test.NewCriRuntimeServer()
+func runServerAndCreateProvider(ctx context.Context) (*CrioCRI, *test.CRIServer, *test.CrioServer, error) {
 	criSocketPath := test.GetRandomSocketPath()
+	criServer := test.NewCriRuntimeServer()
 	go test.RunCriServer(criServer, criSocketPath)
+
+	crioSocketPath := test.GetRandomSocketPath()
+	crioServer := test.NewCrioRuntimerServer()
+	go test.RunCrioServer(crioServer, crioSocketPath)
 	time.Sleep(time.Millisecond * 50)
 
 	criGrpc, err := test.NewCRIGrpcClient(ctx, criSocketPath)
@@ -26,26 +24,18 @@ func runServerAndCreateProvider(ctx context.Context) (*ContainerdCRI, *test.CRIS
 		return nil, nil, nil, err
 	}
 
-	ctrdGrpc, err := test.NewCtrdGrpcClient(ctx, ctrdSocketPath)
-	if err != nil {
-		return nil, nil, nil, err
+	crioClient := test.NewCrioHttpClient(crioSocketPath)
+
+	provider := &CrioCRI{
+		conn:       criGrpc,
+		crioClient: crioClient,
 	}
 
-	ctrdConn, err := containerd.NewWithConn(ctrdGrpc)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-
-	provider := &ContainerdCRI{
-		conn: criGrpc,
-		ctrd: ctrdConn,
-	}
-
-	return provider, criServer, ctrdSever, nil
+	return provider, criServer, crioServer, nil
 }
 
-func TestNewContainerdProvider(t *testing.T) {
-	_, err := NewContainerdProvider()
+func TestNewCrioProvider(t *testing.T) {
+	_, err := NewCrioProvider()
 	if !reflect.DeepEqual(err, nil) {
 		t.Errorf("want error nil, but get:%v", err)
 	}
@@ -104,12 +94,12 @@ func TestPause(t *testing.T) {
 
 	for _, v := range tests {
 		ctx := context.Background()
-		provider, _, ctrdServer, err := runServerAndCreateProvider(ctx)
+		provider, _, crioServer, err := runServerAndCreateProvider(ctx)
 		if err != nil {
 			t.Errorf("init error:%v", err)
 		}
 
-		ctrdServer.AddCtrForCtrd(v.ctrsAdd)
+		crioServer.AddCrioForCtrd(v.ctrsAdd)
 		err = provider.Pause(ctx, v.reqCtrId)
 		if (err != nil) != v.expectError {
 			t.Errorf("expect error exist:%v, but get:%v", v.expectError, err)
@@ -145,12 +135,12 @@ func TestResume(t *testing.T) {
 
 	for _, v := range tests {
 		ctx := context.Background()
-		provider, _, ctrdServer, err := runServerAndCreateProvider(ctx)
+		provider, _, crioServer, err := runServerAndCreateProvider(ctx)
 		if err != nil {
 			t.Errorf("init error:%v", err)
 		}
 
-		ctrdServer.AddCtrForCtrd(v.ctrsAdd)
+		crioServer.AddCrioForCtrd(v.ctrsAdd)
 		err = provider.Resume(ctx, v.reqCtrId)
 		if (err != nil) != v.expectError {
 			t.Errorf("expect error exist:%v, but get:%v", v.expectError, err)

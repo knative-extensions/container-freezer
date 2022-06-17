@@ -1,20 +1,20 @@
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
-  name: freeze-daemon-containerd
+  name: freeze-daemon-crio
   namespace: knative-serving
 spec:
   selector:
     matchLabels:
-      name: freeze-daemon
+      name: freeze-daemon-crio
   template:
     metadata:
       labels:
-        name: freeze-daemon
+        name: freeze-daemon-crio
     spec:
       serviceAccountName: freeze-tokenreview
       nodeSelector:
-        knative.dev/container-runtime: containerd
+        knative.dev/container-runtime: crio
       containers:
         - name: daemon
           securityContext:
@@ -22,28 +22,25 @@ spec:
           image: ko://knative.dev/container-freezer/cmd/daemon
           env:
             - name: RUNTIME_TYPE
-              valueFrom:
-                configMapKeyRef:
-                  name: freeze-configmap
-                  key: runtime-type
+              value: "crio"
             - name: FREEZER_LOGGING_CONFIG
               valueFrom:
                 configMapKeyRef:
-                  name: freeze-configmap
+                  name: config-freezer
                   key: freezer-logging-config
             - name: FREEZER_LOGGING_LEVEL
               valueFrom:
                 configMapKeyRef:
-                  name: freeze-configmap
+                  name: config-freezer
                   key: freezer-logging-level
           ports:
             - containerPort: 8080
               hostPort: 9696
           volumeMounts:
-            - name: containerd-socket
-              mountPath: /var/run/containerd/containerd.sock
+            - name: crio-socket
+              mountPath: /var/run/crio/crio.sock
       volumes:
-        - name: containerd-socket
+        - name: crio-socket
           hostPath:
-            path: /var/run/containerd/containerd.sock
+            path: /var/run/crio/crio.sock
             type: Socket

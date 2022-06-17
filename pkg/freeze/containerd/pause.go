@@ -2,7 +2,6 @@ package containerd
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net"
 	"time"
@@ -12,32 +11,13 @@ import (
 	"github.com/containerd/containerd/namespaces"
 	"google.golang.org/grpc"
 
-	cri "k8s.io/cri-api/pkg/apis/runtime/v1alpha2"
+	"knative.dev/container-freezer/pkg/freeze/common"
 )
 
 const defaultContainerdAddress = "/var/run/containerd/containerd.sock"
 
-type CRI interface {
-	List(ctx context.Context, podUID string) ([]string, error)
-	Pause(ctx context.Context, container string) error
-	Resume(ctx context.Context, container string) error
-}
-
-// Containerd freezes and unfreezes containers via containerd.
-type Containerd struct {
-	cri CRI
-}
-
-var ErrNoNonQueueProxyPods = errors.New("no non queue-proxy containers found in pod")
-
-// New return a FreezeThawer based on Containerd.
-// Requires /var/run/containerd/containerd.sock to be mounted.
-func New(c CRI) *Containerd {
-	return &Containerd{cri: c}
-}
-
-// NewCRI returns a CRI based on Containerd.
-func NewCRI() (*ContainerdCRI, error) {
+// NewContainerdProvider returns a CRI based on Containerd
+func NewContainerdProvider() (*ContainerdCRI, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
@@ -52,37 +32,8 @@ func NewCRI() (*ContainerdCRI, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	return &ContainerdCRI{conn: conn, ctrd: client}, nil
-}
-
-// Freeze freezes the user container(s) via the freezer cgroup.
-func (f *Containerd) Freeze(ctx context.Context, podName string) error {
-	containerIDs, err := f.cri.List(ctx, podName)
-	if err != nil {
-		return err
-	}
-
-	for _, c := range containerIDs {
-		if err := f.cri.Pause(ctx, c); err != nil {
-			return fmt.Errorf("%s not paused: %v", c, err)
-		}
-	}
-	return nil
-}
-
-// Thaw thaws the user container(s) frozen via the Freeze method.
-func (f *Containerd) Thaw(ctx context.Context, podName string) error {
-	containerIDs, err := f.cri.List(ctx, podName)
-	if err != nil {
-		return err
-	}
-
-	for _, c := range containerIDs {
-		if err := f.cri.Resume(ctx, c); err != nil {
-			return fmt.Errorf("%s not resumed: %v", c, err)
-		}
-	}
-	return nil
 }
 
 type ContainerdCRI struct {
@@ -92,36 +43,8 @@ type ContainerdCRI struct {
 
 // List returns a list of all non queue-proxy container IDs in a given pod
 func (c *ContainerdCRI) List(ctx context.Context, podUID string) ([]string, error) {
-	client := cri.NewRuntimeServiceClient(c.conn)
-	pods, err := client.ListPodSandbox(context.Background(), &cri.ListPodSandboxRequest{
-		Filter: &cri.PodSandboxFilter{
-			LabelSelector: map[string]string{
-				"io.kubernetes.pod.uid": podUID,
-			},
-		},
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	if len(pods.Items) == 0 {
-		return nil, fmt.Errorf("pod %s not found", podUID)
-	}
-	pod := pods.Items[0]
-
-	ctrs, err := client.ListContainers(ctx, &cri.ListContainersRequest{Filter: &cri.ContainerFilter{
-		PodSandboxId: pod.Id,
-	}})
-	if err != nil {
-		return nil, err
-	}
-
-	containerIDs, err := lookupContainerIDs(ctrs)
-	if err != nil {
-		return nil, err
-	}
-
-	return containerIDs, nil
+	containerIDs, err := common.List(ctx, c.conn, podUID)
+	return containerIDs, err
 }
 
 // Pause performs a pause action on a specific container
@@ -140,17 +63,4 @@ func (c *ContainerdCRI) Resume(ctx context.Context, container string) error {
 		return fmt.Errorf("%s not resumed: %v", container, err)
 	}
 	return nil
-}
-
-func lookupContainerIDs(ctrs *cri.ListContainersResponse) ([]string, error) {
-	ids := make([]string, 0, len(ctrs.Containers)-1)
-	for _, c := range ctrs.Containers {
-		if c.GetMetadata().GetName() != "queue-proxy" {
-			ids = append(ids, c.Id)
-		}
-	}
-	if len(ids) == 0 {
-		return nil, ErrNoNonQueueProxyPods
-	}
-	return ids, nil
 }

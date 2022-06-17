@@ -15,7 +15,7 @@ import (
 	"k8s.io/client-go/rest"
 
 	"knative.dev/container-freezer/pkg/daemon"
-	"knative.dev/container-freezer/pkg/freeze/containerd"
+	"knative.dev/container-freezer/pkg/freeze"
 	pkglogging "knative.dev/pkg/logging"
 )
 
@@ -51,17 +51,9 @@ func main() {
 	}
 
 	var freezeThaw daemon.FreezeThawer
-	switch runtimeType {
-	case runtimeTypeContainerd:
-		logger.Info("creating new containerd freezeThawer")
-		ctrd, err := containerd.NewCRI()
-		if err != nil {
-			log.Fatalf("unable to create containerd cri: %v", err)
-		}
-		freezeThaw = containerd.New(ctrd)
-		// TODO support crio
-	default:
-		log.Fatal("unrecognised runtimeType", runtimeType)
+	freezeThaw, err = freeze.NewCRIProvider(runtimeType)
+	if err != nil {
+		log.Fatal(err)
 	}
 
 	http.ListenAndServe(":8080", &daemon.Handler{
