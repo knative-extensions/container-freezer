@@ -15,6 +15,7 @@ import (
 
 const defaultCrioAddress = "/var/run/crio/crio.sock"
 
+// NewCrioProvider returns a CRI based on crio
 func NewCrioProvider() (*CrioCRI, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()

@@ -6,11 +6,11 @@ metadata:
 spec:
   selector:
     matchLabels:
-      name: freeze-daemon
+      name: freeze-daemon-crio
   template:
     metadata:
       labels:
-        name: freeze-daemon
+        name: freeze-daemon-crio
     spec:
       serviceAccountName: freeze-tokenreview
       nodeSelector:
@@ -22,19 +22,16 @@ spec:
           image: ko://knative.dev/container-freezer/cmd/daemon
           env:
             - name: RUNTIME_TYPE
-              valueFrom:
-                configMapKeyRef:
-                  name: freeze-configmap
-                  key: runtime-type
+              value: "crio"
             - name: FREEZER_LOGGING_CONFIG
               valueFrom:
                 configMapKeyRef:
-                  name: freeze-configmap
+                  name: config-freezer
                   key: freezer-logging-config
             - name: FREEZER_LOGGING_LEVEL
               valueFrom:
                 configMapKeyRef:
-                  name: freeze-configmap
+                  name: config-freezer
                   key: freezer-logging-level
           ports:
             - containerPort: 8080

@@ -16,6 +16,7 @@ import (
 
 const defaultContainerdAddress = "/var/run/containerd/containerd.sock"
 
+// NewContainerdProvider returns a CRI based on Containerd
 func NewContainerdProvider() (*ContainerdCRI, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()

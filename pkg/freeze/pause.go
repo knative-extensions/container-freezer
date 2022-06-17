@@ -21,12 +21,13 @@ type CRI interface {
 	Resume(ctx context.Context, container string) error
 }
 
-type CRIImpl struct {
+type ContainerRuntimeImpl struct {
 	cri CRI
 }
 
-func NewCRIProvider(runtimeType string) (*CRIImpl, error) {
-	criImpl := &CRIImpl{}
+// NewCRIProvider returns a provider to thaw/freeze based on container-runtime
+func NewCRIProvider(runtimeType string) (*ContainerRuntimeImpl, error) {
+	criImpl := &ContainerRuntimeImpl{}
 
 	switch runtimeType {
 	case runtimeTypeContainerd:
@@ -48,7 +49,8 @@ func NewCRIProvider(runtimeType string) (*CRIImpl, error) {
 	}
 }
 
-func (c *CRIImpl) Freeze(ctx context.Context, podName string) error {
+// Freeze performs a pause action based on different container-runtime
+func (c *ContainerRuntimeImpl) Freeze(ctx context.Context, podName string) error {
 	containerIDs, err := c.cri.List(ctx, podName)
 	if err != nil {
 		if errors.Is(err, common.ErrNoNonQueueProxyPods) {
@@ -65,7 +67,8 @@ func (c *CRIImpl) Freeze(ctx context.Context, podName string) error {
 	return nil
 }
 
-func (c *CRIImpl) Thaw(ctx context.Context, podName string) error {
+// Thaw performs a resume action based on different container-runtime
+func (c *ContainerRuntimeImpl) Thaw(ctx context.Context, podName string) error {
 	containerIDs, err := c.cri.List(ctx, podName)
 	if err != nil {
 		return err
