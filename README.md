@@ -21,7 +21,7 @@ Next, you will need to label your nodes with the runtime used in your cluster:
 
 * For containerd: `kubectl label nodes minikube knative.dev/container-runtime=containerd`
 
-* For docker: `kubectl label nodes minikube knative.dev/container-runtime=docker`
+* For cri-o(version>=1.24.1): `kubectl label nodes minikube knative.dev/container-runtime=crio`
     
 ### Install the container-freezer daemon
 
