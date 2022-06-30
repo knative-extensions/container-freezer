@@ -46,6 +46,14 @@ func NewCtrdRuntimeServer() *CtrdServer {
 	return &CtrdServer{}
 }
 
+func (c *CRIServer) PodSandboxStats(ctx context.Context, request *v1alpha2.PodSandboxStatsRequest) (*v1alpha2.PodSandboxStatsResponse, error) {
+	return nil, fmt.Errorf("Not implement")
+}
+
+func (c *CRIServer) ListPodSandboxStats(ctx context.Context, request *v1alpha2.ListPodSandboxStatsRequest) (*v1alpha2.ListPodSandboxStatsResponse, error) {
+	return nil, fmt.Errorf("Not implement")
+}
+
 func (c *CRIServer) AddPodSandboxForCRI(pod MockPod) {
 	c.Pod = append(c.Pod, pod)
 }
