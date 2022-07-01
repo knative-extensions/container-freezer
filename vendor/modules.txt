@@ -533,10 +533,10 @@ k8s.io/utils/clock/testing
 k8s.io/utils/integer
 k8s.io/utils/internal/third_party/forked/golang/net
 k8s.io/utils/net
-# knative.dev/hack v0.0.0-20220629134730-e7d63651ce8f
+# knative.dev/hack v0.0.0-20220701014203-65c463ac8c98
 ## explicit
 knative.dev/hack
-# knative.dev/pkg v0.0.0-20220630112730-85965e1e8eb1
+# knative.dev/pkg v0.0.0-20220701013933-97eb1507655e
 ## explicit
 knative.dev/pkg/changeset
 knative.dev/pkg/logging
