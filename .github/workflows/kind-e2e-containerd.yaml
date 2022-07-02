@@ -10,6 +10,9 @@ defaults:
     shell: bash
     working-directory: ./src/knative.dev/container-freezer
 
+env:
+  GOTESTSUM_VERSION: 1.7.0
+
 jobs:
   e2e-tests:
     name: e2e tests
@@ -20,7 +23,7 @@ jobs:
         k8s-version:
           - v1.22.9
           - v1.23.6
-          - v1.24.0
+          - v1.24.2
 
         # Map between K8s and KinD versions.
         # This is attempting to make it a bit clearer what's being tested.
@@ -34,7 +37,7 @@ jobs:
             kind-version: v0.14.0
             kind-image-sha: sha256:b1fa224cc6c7ff32455e0b1fd9cbfd3d3bc87ecaa8fcb06961ed1afb3db0f9ae
 
-          - k8s-version: v1.24.0
+          - k8s-version: v1.24.2
             kind-version: v0.14.0
             kind-image-sha: sha256:0866296e693efe1fed79d5e6c7af8df71fc73ae45e3679af05342239cdc5bc8e
 
@@ -59,6 +62,12 @@ jobs:
           chmod +x ./ko
           sudo mv ko /usr/local/bin
           echo '::endgroup::'
+
+          echo "::group:: install gotestsum ${GOTESTSUM_VERSION}"
+          curl -L https://github.com/gotestyourself/gotestsum/releases/download/v${GOTESTSUM_VERSION}/gotestsum_${GOTESTSUM_VERSION}_linux_amd64.tar.gz | tar xzf - gotestsum
+          chmod +x ./gotestsum
+          sudo mv gotestsum /usr/local/bin
+          echo "::endgroup::"
 
       - name: Check out code onto GOPATH
         uses: actions/checkout@v2
@@ -131,6 +140,24 @@ jobs:
           # For debugging.
           kubectl get pods --all-namespaces
 
+      - name: Setup test environment
+        run: |
+          kubectl patch configmap/config-deployment -n knative-serving --type merge -p '{"data":{"concurrencyStateEndpoint":"http://$HOST_IP:9696"}}'
+          ko apply -f test/test_images/sleeptalker.yaml
+          kubectl wait ksvc --timeout 300s --for=condition=Ready -n default sleeptalker
+
       - name: Run e2e Tests
         run: |
-          bash +x ./test/e2e-kind-containerd.sh
+          gotestsum --format testname -- \
+            -race -count=1 -parallel=1 -tags=e2e \
+            -timeout=30m \
+            -short ./test/e2e/containerd \
+            -skip-cleanup-on-fail
+
+      - uses: chainguard-dev/actions/kind-diag@main
+        # Only upload logs on failure.
+        if: ${{ failure() }}
+        with:
+          cluster-resources: nodes,namespaces,crds,${{ matrix.cluster-resources || '' }}
+          namespace-resources: pods,svc,ksvc,route,configuration,revision,king,${{ matrix.namespace-resources || '' }}
+          artifact-name: logs-${{ matrix.k8s-version }}-container-freezer-containerd-e2e-test
