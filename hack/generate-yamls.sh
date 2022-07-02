@@ -35,7 +35,9 @@ fi
 rm -fr ${YAML_OUTPUT_DIR}/*.yaml
 
 # Generated Knative component YAML files
-readonly CONTAINER_FREEZER_YAML=${YAML_OUTPUT_DIR}/container-freezer.yaml
+readonly FREEZER_COMMON_YAML=${YAML_OUTPUT_DIR}/freezer-common.yaml
+readonly FREEZER_CONTAINERD_YAML=${YAML_OUTPUT_DIR}/freezer-containerd.yaml
+readonly FREEZER_CRIO_YAML=${YAML_OUTPUT_DIR}/freezer-crio.yaml
 
 # Flags for all ko commands
 KO_YAML_FLAGS="-P"
@@ -60,6 +62,22 @@ export KO_DOCKER_REPO
 cd "${YAML_REPO_ROOT}"
 
 echo "Building Knative Container-Freezer"
-ko resolve ${KO_YAML_FLAGS} -f config/ | "${LABEL_YAML_CMD[@]}" > "${CONTAINER_FREEZER_YAML}"
+ko resolve ${KO_YAML_FLAGS} -f config/common | "${LABEL_YAML_CMD[@]}" > "${FREEZER_COMMON_YAML}"
+ko resolve ${KO_YAML_FLAGS} -f config/containerd | "${LABEL_YAML_CMD[@]}" > "${FREEZER_CONTAINERD_YAML}"
+ko resolve ${KO_YAML_FLAGS} -f config/crio | "${LABEL_YAML_CMD[@]}" > "${FREEZER_CRIO_YAML}"
 
 echo "All manifests generated"
+
+# List generated YAML files, with freezer-common.yaml first.
+
+cat << EOF > ${YAML_LIST_FILE}
+${FREEZER_COMMON_YAML}
+${FREEZER_CONTAINERD_YAML}
+${FREEZER_CRIO_YAML}
+EOF
+
+cat << EOF > "${YAML_ENV_FILE}"
+export FREEZER_COMMON_YAML=${FREEZER_COMMON_YAML}
+export FREEZER_CONTAINERD_YAML=${FREEZER_CONTAINERD_YAML}
+export FREEZER_CRIO_YAML=${FREEZER_CRIO_YAML}
+EOF
