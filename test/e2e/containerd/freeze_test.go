@@ -162,16 +162,20 @@ func Test_RequestShouldBeResumed(t *testing.T) {
 	}
 
 	reqUrl := "http://" + nodeIP + ":" + strconv.Itoa(int(nodePort))
+	t.Logf("Do request for:%s", reqUrl)
 	req, err := http.NewRequest("GET", reqUrl, nil)
 	if err != nil {
 		t.Fatalf("Create http request error:%v", err)
 	}
 	req.Host = ksvcUrl
 	resp, err := http.DefaultClient.Do(req)
-	if err != nil || resp.StatusCode != http.StatusOK {
+	if err != nil {
 		t.Fatalf("Do request error:%v", err)
 	}
-	resp.Body.Close()
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("Response code is:%d", resp.StatusCode)
+	}
 
 	tickLogsByte, err := logSleepTalkerPod(ctx, clients.KubeClient)
 	if err != nil {

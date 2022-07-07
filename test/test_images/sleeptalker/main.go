@@ -19,7 +19,8 @@ func main() {
 	// while this is going.
 	http.ListenAndServe(":8080", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.(http.Flusher).Flush()
+		fmt.Fprint(w, "Hello, this request will take five seconds..")
 		time.Sleep(5 * time.Second)
-		fmt.Fprintln(w, "Hello, this request will take five seconds..")
+		fmt.Fprint(w, "world")
 	}))
 }
