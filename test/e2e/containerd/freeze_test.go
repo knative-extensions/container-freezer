@@ -86,7 +86,7 @@ func logSleepTalkerPod(ctx context.Context, client kubernetes.Interface) ([]byte
 	return tickLogsByte, nil
 }
 
-func IsPausedState() (bool, error) {
+func isPausedState() (bool, error) {
 	time.Sleep(time.Second * 5)
 
 	clients, err := newClient()
@@ -111,30 +111,32 @@ func IsPausedState() (bool, error) {
 	return true, nil
 }
 
-func Test_InitShouldBePaused(t *testing.T) {
+func initShouldBePaused() error {
 	var ok bool
 	var err error
-	if ok, err = IsPausedState(); err != nil {
-		t.Fatalf("Check paused state error:%v", err)
+	if ok, err = isPausedState(); err != nil {
+		return fmt.Errorf("check paused state error:%v", err)
 	}
 
 	if !ok {
-		t.Fatalf("The init sate is not paused, please check it")
+		return fmt.Errorf("the init sate is not paused, please check it")
 	}
+
+	return nil
 }
 
-func Test_RequestShouldBeResumed(t *testing.T) {
+func requestShouldBeResumed() error {
 	time.Sleep(time.Second * 5)
 
 	clients, err := newClient()
 	if err != nil {
-		t.Fatalf("Create client failed:%v", err)
+		return fmt.Errorf("create client failed:%v", err)
 	}
 
 	ctx := context.Background()
 	node, err := clients.KubeClient.CoreV1().Nodes().Get(ctx, workerNodeName, metav1.GetOptions{})
 	if err != nil {
-		t.Fatalf("Get worker node error:%v", err)
+		return fmt.Errorf("get worker node error:%v", err)
 	}
 
 	nodeIP := ""
@@ -144,13 +146,13 @@ func Test_RequestShouldBeResumed(t *testing.T) {
 		}
 	}
 	if nodeIP == "" {
-		t.Fatalf("node ip is empty")
+		return fmt.Errorf("node ip is empty")
 	}
 
 	var nodePort int32
 	svc, err := clients.KubeClient.CoreV1().Services(lbsvcNamespace).Get(ctx, lbsvcName, metav1.GetOptions{})
 	if err != nil {
-		t.Fatalf("Get lb svc error:%v", err)
+		return fmt.Errorf("get lb svc error:%v", err)
 	}
 	for _, v := range svc.Spec.Ports {
 		if v.Port == 80 {
@@ -158,46 +160,66 @@ func Test_RequestShouldBeResumed(t *testing.T) {
 		}
 	}
 	if nodePort == 0 {
-		t.Fatalf("Lb's nodePort is 0")
+		return fmt.Errorf("lb's nodePort is 0")
 	}
 
 	reqUrl := "http://" + nodeIP + ":" + strconv.Itoa(int(nodePort))
-	t.Logf("Do request for:%s", reqUrl)
 	req, err := http.NewRequest("GET", reqUrl, nil)
 	if err != nil {
-		t.Fatalf("Create http request error:%v", err)
+		return fmt.Errorf("create http request error:%v", err)
 	}
 	req.Host = ksvcUrl
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		t.Fatalf("Do request error:%v", err)
+		return fmt.Errorf("do request error:%v", err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("Response code is:%d", resp.StatusCode)
+		return fmt.Errorf("response code is:%d", resp.StatusCode)
 	}
 
 	tickLogsByte, err := logSleepTalkerPod(ctx, clients.KubeClient)
 	if err != nil {
-		t.Fatalf("Get sleeptalker pod's log error:%v", err)
+		return fmt.Errorf("get sleeptalker pod's log error:%v", err)
 	}
 	lastTimestamp, err := findTheLastTimestamp(tickLogsByte)
 	if err != nil {
-		t.Fatalf("Get log timestamp error:%v", err)
+		return fmt.Errorf("get log timestamp error:%v", err)
 	}
-	if time.Now().Sub(lastTimestamp) > time.Second {
-		t.Fatalf("Not resumed, Please check:%d", time.Now().Sub(lastTimestamp)/time.Second)
+	if time.Now().Sub(lastTimestamp) > time.Second*5 {
+		return fmt.Errorf("not resumed, Please check:%d", time.Now().Sub(lastTimestamp)/time.Second)
 	}
+
+	return nil
 }
 
-func Test_AfterRequestShouldBePaused(t *testing.T) {
+func afterRequestShouldBePaused() error {
 	var ok bool
 	var err error
-	if ok, err = IsPausedState(); err != nil {
-		t.Fatalf("Check paused state error:%v", err)
+	if ok, err = isPausedState(); err != nil {
+		return fmt.Errorf("Check paused state error:%v", err)
 	}
 
 	if !ok {
-		t.Fatalf("After request finished, the sate is not paused, please check it")
+		return fmt.Errorf("after request finished, the sate is not paused, please check it")
+	}
+
+	return nil
+}
+
+func Test_ContainerdFreezer(t *testing.T) {
+	// First check the init state
+	if err := initShouldBePaused(); err != nil {
+		t.Fatalf("Check paused state error:%v", err)
+	}
+
+	// Second do request and check the state
+	if err := requestShouldBeResumed(); err != nil {
+		t.Fatalf("Check resume state error:%v", err)
+	}
+
+	// Third check the state after request
+	if err := afterRequestShouldBePaused(); err != nil {
+		t.Fatalf("Check state after request error:%v", err)
 	}
 }

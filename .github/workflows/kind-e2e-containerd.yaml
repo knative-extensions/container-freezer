@@ -12,7 +12,6 @@ defaults:
 
 env:
   GOTESTSUM_VERSION: 1.7.0
-  KN_SERVING_VERSION: 1.5.0
 
 jobs:
   e2e-tests:
@@ -120,9 +119,9 @@ jobs:
       - name: Install Knative Serving and net-kourier
         run: |
           set -o pipefail
-          kubectl apply -f https://github.com/knative/serving/releases/download/knative-v${KN_SERVING_VERSION}/serving-crds.yaml
-          kubectl apply -f https://github.com/knative/serving/releases/download/knative-v${KN_SERVING_VERSION}/serving-core.yaml
-          kubectl apply -f https://github.com/knative/net-kourier/releases/download/knative-v${KN_SERVING_VERSION}/kourier.yaml
+          kubectl apply -f https://storage.googleapis.com/knative-nightly/serving/latest/serving-crds.yaml
+          kubectl apply -f https://storage.googleapis.com/knative-nightly/serving/latest/serving-core.yaml
+          kubectl apply -f https://storage.googleapis.com/knative-nightly/net-kourier/latest/kourier.yaml
           kubectl patch configmap/config-network \
             --namespace knative-serving \
             --type merge \
