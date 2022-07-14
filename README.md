@@ -23,20 +23,18 @@ Next, you will need to label your nodes with the runtime used in your cluster:
 
 * For cri-o(version>=1.24.1): `kubectl label nodes minikube knative.dev/container-runtime=crio`
     
-### Install the container-freezer daemon
+### Install container-freezer 
 
-To run the container-freezer service, the first step is to clone this repository:
-
-``` bash
-git clone git@github.com:knative-sandbox/container-freezer.git
+```bash
+RUNTIME=containerd
+RELEASE=v0.1.0
+kubectl apply -f "https://github.com/knative-sandbox/container-freezer/releases/download/${RELEASE}/freezer-common.yaml"
+kubectl apply -f "https://github.com/knative-sandbox/container-freezer/releases/download/${RELEASE}/freezer-${RUNTIME}.yaml"
 ```
 
-Next, use [`ko`](https://github.com/google/ko) to build and deploy the container-freezer service:
+Note: `RUNTIME` must be one of either `containerd` or `crio`.
 
-``` bash
-cd container-freezer
-ko apply -f config/
-```
+Check the [Releases](https://github.com/knative-sandbox/container-freezer/releases) page to get the most recent version.
 
 ### Enable concurrency endpoint in Knative Serving
 
