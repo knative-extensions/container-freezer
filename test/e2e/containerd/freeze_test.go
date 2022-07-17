@@ -57,13 +57,21 @@ func newClient() (*test.Clients, error) {
 	return clients, nil
 }
 
-func findTheLastTimestamp(logs []byte) (time.Time, error) {
+func findTheLastTimestamp(ctx context.Context, clients *test.Clients) (time.Time, error) {
+	logs, err := logSleepTalkerPod(ctx, clients.KubeClient)
+	if err != nil {
+		return time.Time{}, err
+	}
 	lines := strings.Split(string(logs), "\n")
-	//The last line has \n, so last array element is empty, we choose the penultimate element
-	lastLine := lines[len(lines)-2]
-	// case: Ticking at: Wed Jun 29 15:42:54 2022
-	timeStamp := strings.Split(lastLine, "at: ")
-	return time.Parse(time.ANSIC, timeStamp[1])
+	for i := len(lines) - 1; i >= 0; i-- {
+		if lines[i] != "" {
+			timeStamp := strings.Split(lines[i], "at: ")
+			// case: Ticking at: Wed Jun 29 15:42:54 2022
+			return time.Parse(time.ANSIC, timeStamp[1])
+		}
+	}
+
+	return time.Time{}, fmt.Errorf("no log lines")
 }
 
 func logSleepTalkerPod(ctx context.Context, client kubernetes.Interface) ([]byte, error) {
@@ -76,9 +84,11 @@ func logSleepTalkerPod(ctx context.Context, client kubernetes.Interface) ([]byte
 		return nil, fmt.Errorf("pods are more than one, please check")
 	}
 
+	var logTailNums int64 = 3
 	sleepTalkerPod := pods.Items[0]
 	tickLogsByte, err := client.CoreV1().Pods(deployNamespace).
-		GetLogs(sleepTalkerPod.Name, &v1.PodLogOptions{Container: "user-container"}).Do(ctx).Raw()
+		GetLogs(sleepTalkerPod.Name, &v1.PodLogOptions{Container: "user-container", TailLines: &logTailNums}).
+		Do(ctx).Raw()
 	if err != nil {
 		return nil, fmt.Errorf("get pod:%s log error:%v", sleepTalkerPod.Name, err)
 	}
@@ -86,54 +96,27 @@ func logSleepTalkerPod(ctx context.Context, client kubernetes.Interface) ([]byte
 	return tickLogsByte, nil
 }
 
-func isPausedState() (bool, error) {
+func isPausedState(ctx context.Context, clients *test.Clients) error {
+	timeBefore, err := findTheLastTimestamp(ctx, clients)
+	if err != nil {
+		return err
+	}
+
 	time.Sleep(time.Second * 5)
 
-	clients, err := newClient()
+	timeAfter, err := findTheLastTimestamp(ctx, clients)
 	if err != nil {
-		return false, err
+		return err
 	}
 
-	ctx := context.Background()
-	tickLogsByte, err := logSleepTalkerPod(ctx, clients.KubeClient)
-	if err != nil {
-		return false, err
-	}
-	lastTimestamp, err := findTheLastTimestamp(tickLogsByte)
-	if err != nil {
-		return false, err
-	}
-	//we wait 5 second before, so the time difference should not smaller than 5 seconds
-	if time.Now().Sub(lastTimestamp) < time.Second*5 {
-		return false, nil
-	}
-
-	return true, nil
-}
-
-func initShouldBePaused() error {
-	var ok bool
-	var err error
-	if ok, err = isPausedState(); err != nil {
-		return fmt.Errorf("check paused state error:%v", err)
-	}
-
-	if !ok {
-		return fmt.Errorf("the init sate is not paused, please check it")
+	if timeAfter != timeBefore {
+		return fmt.Errorf("time log is not same as 5 seconds ago")
 	}
 
 	return nil
 }
 
-func requestShouldBeResumed() error {
-	time.Sleep(time.Second * 5)
-
-	clients, err := newClient()
-	if err != nil {
-		return fmt.Errorf("create client failed:%v", err)
-	}
-
-	ctx := context.Background()
+func requestService(ctx context.Context, clients *test.Clients) error {
 	node, err := clients.KubeClient.CoreV1().Nodes().Get(ctx, workerNodeName, metav1.GetOptions{})
 	if err != nil {
 		return fmt.Errorf("get worker node error:%v", err)
@@ -150,7 +133,8 @@ func requestShouldBeResumed() error {
 	}
 
 	var nodePort int32
-	svc, err := clients.KubeClient.CoreV1().Services(lbsvcNamespace).Get(ctx, lbsvcName, metav1.GetOptions{})
+	svc, err := clients.KubeClient.CoreV1().Services(lbsvcNamespace).
+		Get(ctx, lbsvcName, metav1.GetOptions{})
 	if err != nil {
 		return fmt.Errorf("get lb svc error:%v", err)
 	}
@@ -178,48 +162,52 @@ func requestShouldBeResumed() error {
 		return fmt.Errorf("response code is:%d", resp.StatusCode)
 	}
 
-	tickLogsByte, err := logSleepTalkerPod(ctx, clients.KubeClient)
-	if err != nil {
-		return fmt.Errorf("get sleeptalker pod's log error:%v", err)
-	}
-	lastTimestamp, err := findTheLastTimestamp(tickLogsByte)
+	return nil
+}
+
+func requestShouldBeResumed(ctx context.Context, clients *test.Clients) error {
+	timeBefore, err := findTheLastTimestamp(ctx, clients)
 	if err != nil {
 		return fmt.Errorf("get log timestamp error:%v", err)
 	}
-	if time.Now().Sub(lastTimestamp) > time.Second*5 {
-		return fmt.Errorf("not resumed, Please check:%d", time.Now().Sub(lastTimestamp)/time.Second)
+
+	time.Sleep(time.Second * 5)
+
+	if err := requestService(ctx, clients); err != nil {
+		return fmt.Errorf("request svc error:%v", err)
+	}
+
+	timeAfter, err := findTheLastTimestamp(ctx, clients)
+	if err != nil {
+		return fmt.Errorf("get log timestamp error:%v", err)
+	}
+
+	if timeBefore == timeAfter {
+		return fmt.Errorf("not resumed, please check")
 	}
 
 	return nil
 }
 
-func afterRequestShouldBePaused() error {
-	var ok bool
-	var err error
-	if ok, err = isPausedState(); err != nil {
-		return fmt.Errorf("Check paused state error:%v", err)
+func TestFreezerBasedContainerd(t *testing.T) {
+	ctx := context.Background()
+	clients, err := newClient()
+	if err != nil {
+		t.Fatalf("Init clients error:%v", err)
 	}
 
-	if !ok {
-		return fmt.Errorf("after request finished, the sate is not paused, please check it")
-	}
-
-	return nil
-}
-
-func Test_ContainerdFreezer(t *testing.T) {
 	// First check the init state
-	if err := initShouldBePaused(); err != nil {
-		t.Fatalf("Check paused state error:%v", err)
+	if err := isPausedState(ctx, clients); err != nil {
+		t.Fatalf("Check init paused state error:%v", err)
 	}
 
 	// Second do request and check the state
-	if err := requestShouldBeResumed(); err != nil {
+	if err := requestShouldBeResumed(ctx, clients); err != nil {
 		t.Fatalf("Check resume state error:%v", err)
 	}
 
 	// Third check the state after request
-	if err := afterRequestShouldBePaused(); err != nil {
+	if err := isPausedState(ctx, clients); err != nil {
 		t.Fatalf("Check state after request error:%v", err)
 	}
 }
