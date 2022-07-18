@@ -4,12 +4,11 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
-	"time"
-
 	"net"
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	ctrdv1 "github.com/containerd/containerd/api/services/tasks/v1"
 	types1 "github.com/gogo/protobuf/types"
@@ -44,6 +43,14 @@ func NewCrioRuntimerServer() *CrioServer {
 
 func NewCtrdRuntimeServer() *CtrdServer {
 	return &CtrdServer{}
+}
+
+func (c *CRIServer) PodSandboxStats(ctx context.Context, request *v1alpha2.PodSandboxStatsRequest) (*v1alpha2.PodSandboxStatsResponse, error) {
+	return &v1alpha2.PodSandboxStatsResponse{}, nil
+}
+
+func (c *CRIServer) ListPodSandboxStats(ctx context.Context, request *v1alpha2.ListPodSandboxStatsRequest) (*v1alpha2.ListPodSandboxStatsResponse, error) {
+	return &v1alpha2.ListPodSandboxStatsResponse{}, nil
 }
 
 func (c *CRIServer) AddPodSandboxForCRI(pod MockPod) {

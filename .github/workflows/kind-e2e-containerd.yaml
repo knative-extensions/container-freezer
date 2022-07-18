@@ -1,0 +1,163 @@
+name: KinD e2e tests
+on:
+  pull_request:
+    branches: [ 'main' ]
+  push:
+    branches: [ 'main' ]
+
+defaults:
+  run:
+    shell: bash
+    working-directory: ./src/knative.dev/container-freezer
+
+env:
+  GOTESTSUM_VERSION: 1.7.0
+
+jobs:
+  e2e-tests:
+    name: e2e tests
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false # Keep running if one leg fails.
+      matrix:
+        k8s-version:
+          - v1.22.9
+          - v1.23.6
+          - v1.24.2
+
+        # Map between K8s and KinD versions.
+        # This is attempting to make it a bit clearer what's being tested.
+        # See: https://github.com/kubernetes-sigs/kind/releases
+        include:
+          - k8s-version: v1.22.9
+            kind-version: v0.14.0
+            kind-image-sha: sha256:8135260b959dfe320206eb36b3aeda9cffcb262f4b44cda6b33f7bb73f453105
+
+          - k8s-version: v1.23.6
+            kind-version: v0.14.0
+            kind-image-sha: sha256:b1fa224cc6c7ff32455e0b1fd9cbfd3d3bc87ecaa8fcb06961ed1afb3db0f9ae
+
+          - k8s-version: v1.24.2
+            kind-version: v0.14.0
+            kind-image-sha: sha256:0866296e693efe1fed79d5e6c7af8df71fc73ae45e3679af05342239cdc5bc8e
+
+    env:
+      GOPATH: ${{ github.workspace }}
+      KO_DOCKER_REPO: kind.local
+      # Use a semi-random cluster suffix, but somewhat predictable
+      # so reruns don't just give us a completely new value.
+      CLUSTER_SUFFIX: c${{ github.run_id }}.local
+
+    steps:
+      - name: Set up Go 1.17.9
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.17.9
+
+      - name: Install Dependencies
+        working-directory: ./
+        run: |
+          echo '::group:: install ko'
+          curl -L https://github.com/google/ko/releases/download/v0.9.3/ko_0.9.3_Linux_x86_64.tar.gz | tar xzf - ko
+          chmod +x ./ko
+          sudo mv ko /usr/local/bin
+          echo '::endgroup::'
+
+          echo "::group:: install gotestsum ${GOTESTSUM_VERSION}"
+          curl -L https://github.com/gotestyourself/gotestsum/releases/download/v${GOTESTSUM_VERSION}/gotestsum_${GOTESTSUM_VERSION}_linux_amd64.tar.gz | tar xzf - gotestsum
+          chmod +x ./gotestsum
+          sudo mv gotestsum /usr/local/bin
+          echo "::endgroup::"
+
+      - name: Check out code onto GOPATH
+        uses: actions/checkout@v2
+        with:
+          path: ./src/knative.dev/container-freezer
+
+      - name: Install KinD
+        run: |
+          set -x
+          # Disable swap otherwise memory enforcement doesn't work
+          # See: https://kubernetes.slack.com/archives/CEKK1KTN2/p1600009955324200
+          sudo swapoff -a
+          sudo rm -f /swapfile
+          curl -Lo ./kind https://github.com/kubernetes-sigs/kind/releases/download/${{ matrix.kind-version }}/kind-$(uname)-amd64
+          chmod +x ./kind
+          sudo mv kind /usr/local/bin
+
+      - name: Create KinD Cluster
+        run: |
+          set -x
+          # KinD configuration.
+          cat > kind.yaml <<EOF
+          apiVersion: kind.x-k8s.io/v1alpha4
+          kind: Cluster
+          nodes:
+          - role: control-plane
+            image: kindest/node:${{ matrix.k8s-version }}@${{ matrix.kind-image-sha }}
+          - role: worker
+            image: kindest/node:${{ matrix.k8s-version }}@${{ matrix.kind-image-sha }}
+          # This is needed in order to
+          # (1) support projected volumes with service account tokens. See
+          #     https://kubernetes.slack.com/archives/CEKK1KTN2/p1600268272383600
+          # (2) use a random cluster suffix
+          kubeadmConfigPatches:
+            - |
+              kind: ClusterConfiguration
+              metadata:
+                name: config
+              apiServer:
+                extraArgs:
+                  "service-account-issuer": "kubernetes.default.svc"
+                  "service-account-signing-key-file": "/etc/kubernetes/pki/sa.key"
+              networking:
+                dnsDomain: "${CLUSTER_SUFFIX}"
+          EOF
+          # Create a cluster!
+          kind create cluster --config kind.yaml
+
+      - name: Install Knative Serving and net-kourier
+        run: |
+          set -o pipefail
+          kubectl apply -f https://storage.googleapis.com/knative-nightly/serving/latest/serving-crds.yaml
+          kubectl apply -f https://storage.googleapis.com/knative-nightly/serving/latest/serving-core.yaml
+          kubectl apply -f https://storage.googleapis.com/knative-nightly/net-kourier/latest/kourier.yaml
+          kubectl patch configmap/config-network \
+            --namespace knative-serving \
+            --type merge \
+            --patch '{"data":{"ingress-class":"kourier.ingress.networking.knative.dev"}}'
+
+      - name: Install container-freezer
+        run: |
+          set -o pipefail
+          ko apply -Rf config/
+          kubectl label nodes kind-worker knative.dev/container-runtime=containerd
+
+      - name: Wait for Ready
+        run: |
+          echo Waiting for Pods to become ready.
+          kubectl wait pod --timeout 300s --for=condition=Ready -n knative-serving -l "app.kubernetes.io/name=knative-serving"
+          # For debugging.
+          kubectl get pods --all-namespaces
+
+      - name: Setup test environment
+        run: |
+          kubectl patch configmap/config-deployment -n knative-serving --type merge -p '{"data":{"concurrencyStateEndpoint":"http://$HOST_IP:9696"}}'
+          ko apply -f test/test_images/sleeptalker.yaml
+          kubectl wait ksvc --timeout 300s --for=condition=Ready -n default sleeptalker
+
+      - name: Run e2e Tests
+        run: |
+          gotestsum --format testname -- \
+            -race -count=1 -parallel=1 -tags=e2e \
+            -timeout=30m \
+            -short ./test/e2e/containerd \
+            -skip-cleanup-on-fail
+
+      - uses: chainguard-dev/actions/kind-diag@main
+        # Only upload logs on failure.
+        if: ${{ failure() }}
+        with:
+          cluster-resources: nodes,namespaces,crds,${{ matrix.cluster-resources || '' }}
+          namespace-resources: pods,svc,ksvc,route,configuration,revision,king,${{ matrix.namespace-resources || '' }}
+          artifact-name: logs-${{ matrix.k8s-version }}-container-freezer-containerd-e2e-test
