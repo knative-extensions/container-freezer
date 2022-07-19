@@ -1,4 +1,4 @@
-name: KinD e2e tests
+name: kubeadm e2e tests
 on:
   pull_request:
     branches: [ 'main' ]
@@ -12,6 +12,7 @@ defaults:
 
 env:
   GOTESTSUM_VERSION: 1.7.0
+  CRIO_VERSION: 1.24.1
 
 jobs:
   e2e-tests:
@@ -21,33 +22,20 @@ jobs:
       fail-fast: false # Keep running if one leg fails.
       matrix:
         k8s-version:
-          - v1.22.9
-          - v1.23.6
-          - v1.24.2
-
-        # Map between K8s and KinD versions.
-        # This is attempting to make it a bit clearer what's being tested.
-        # See: https://github.com/kubernetes-sigs/kind/releases
-        include:
-          - k8s-version: v1.22.9
-            kind-version: v0.14.0
-            kind-image-sha: sha256:8135260b959dfe320206eb36b3aeda9cffcb262f4b44cda6b33f7bb73f453105
-
-          - k8s-version: v1.23.6
-            kind-version: v0.14.0
-            kind-image-sha: sha256:b1fa224cc6c7ff32455e0b1fd9cbfd3d3bc87ecaa8fcb06961ed1afb3db0f9ae
-
-          - k8s-version: v1.24.2
-            kind-version: v0.14.0
-            kind-image-sha: sha256:0866296e693efe1fed79d5e6c7af8df71fc73ae45e3679af05342239cdc5bc8e
+          - 1.22.9
+          - 1.23.6
+          - 1.24.2
 
     env:
       GOPATH: ${{ github.workspace }}
-      KO_DOCKER_REPO: kind.local
+      KO_DOCKER_REPO: ko.local
+      # It's a roundabout solution to work with ko
+      # https://github.com/google/go-containerregistry/issues/998#issuecomment-899639215
+      DOCKER_HOST: unix:///run/podman/podman.sock
+      RUNTIME_TYPE: crio
       # Use a semi-random cluster suffix, but somewhat predictable
       # so reruns don't just give us a completely new value.
       CLUSTER_SUFFIX: c${{ github.run_id }}.local
-      RUNTIME_TYPE: containerd
 
     steps:
       - name: Set up Go 1.18.4
@@ -64,10 +52,26 @@ jobs:
           sudo mv ko /usr/local/bin
           echo '::endgroup::'
 
+          echo '::group:: add repo'
+          sudo curl -fsSLo /usr/share/keyrings/kubernetes-archive-keyring.gpg https://packages.cloud.google.com/apt/doc/apt-key.gpg
+          echo "deb [signed-by=/usr/share/keyrings/kubernetes-archive-keyring.gpg] https://apt.kubernetes.io/ kubernetes-xenial main" | sudo tee /etc/apt/sources.list.d/kubernetes.list
+          sudo apt-get update
+          echo '::endgroup::'
+
+          echo '::group:: install kubeadm,kubectl,kubelet'
+          sudo apt-get install -y kubeadm=${{ matrix.k8s-version }}-00 --allow-downgrades
+          sudo apt-get install -y kubelet=${{ matrix.k8s-version }}-00 --allow-downgrades
+          sudo apt-get install -y kubectl=${{ matrix.k8s-version }}-00 --allow-downgrades
+          echo '::endgroup::'
+
           echo "::group:: install gotestsum ${GOTESTSUM_VERSION}"
           curl -L https://github.com/gotestyourself/gotestsum/releases/download/v${GOTESTSUM_VERSION}/gotestsum_${GOTESTSUM_VERSION}_linux_amd64.tar.gz | tar xzf - gotestsum
           chmod +x ./gotestsum
           sudo mv gotestsum /usr/local/bin
+          echo "::endgroup::"
+
+          echo ":: install podman"
+          sudo apt-get -y install podman
           echo "::endgroup::"
 
       - name: Check out code onto GOPATH
@@ -75,47 +79,50 @@ jobs:
         with:
           path: ./src/knative.dev/container-freezer
 
-      - name: Install KinD
+      - name: Install and start cri-o
+        working-directory: ./
         run: |
-          set -x
-          # Disable swap otherwise memory enforcement doesn't work
-          # See: https://kubernetes.slack.com/archives/CEKK1KTN2/p1600009955324200
-          sudo swapoff -a
-          sudo rm -f /swapfile
-          curl -Lo ./kind https://github.com/kubernetes-sigs/kind/releases/download/${{ matrix.kind-version }}/kind-$(uname)-amd64
-          chmod +x ./kind
-          sudo mv kind /usr/local/bin
+          echo ":: install crio"
+          wget https://storage.googleapis.com/cri-o/artifacts/cri-o.amd64.v${CRIO_VERSION}.tar.gz
+          tar -zxvf cri-o.amd64.v${CRIO_VERSION}.tar.gz
+          cd cri-o
+          sudo bash install
+          echo "::endgroup::"
 
-      - name: Create KinD Cluster
+          echo ":: start crio"
+          sudo swapoff -a
+          # it's necessary to delete the bridge file for calico install
+          sudo rm -rf /etc/cni/net.d/10-crio-bridge.conf
+          sudo systemctl start crio.service
+          echo "::endgroup::"
+
+      - name: Run podman server
+        run: |
+          sudo podman system service -t 0 &
+          sudo chmod -R 777 /run/podman
+          source ./test/e2e-common.sh
+          wait_podman_socket_exist
+          sudo chmod -R 777 /run/podman
+
+      - name: Create single node cluster
         run: |
           set -x
-          # KinD configuration.
-          cat > kind.yaml <<EOF
-          apiVersion: kind.x-k8s.io/v1alpha4
-          kind: Cluster
-          nodes:
-          - role: control-plane
-            image: kindest/node:${{ matrix.k8s-version }}@${{ matrix.kind-image-sha }}
-          - role: worker
-            image: kindest/node:${{ matrix.k8s-version }}@${{ matrix.kind-image-sha }}
-          # This is needed in order to
-          # (1) support projected volumes with service account tokens. See
-          #     https://kubernetes.slack.com/archives/CEKK1KTN2/p1600268272383600
-          # (2) use a random cluster suffix
-          kubeadmConfigPatches:
-            - |
-              kind: ClusterConfiguration
-              metadata:
-                name: config
-              apiServer:
-                extraArgs:
-                  "service-account-issuer": "kubernetes.default.svc"
-                  "service-account-signing-key-file": "/etc/kubernetes/pki/sa.key"
-              networking:
-                dnsDomain: "${CLUSTER_SUFFIX}"
-          EOF
-          # Create a cluster!
-          kind create cluster --config kind.yaml
+          sudo kubeadm init --pod-network-cidr=192.168.0.0/16 --cri-socket=/var/run/crio/crio.sock 
+          mkdir -p $HOME/.kube
+          sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+          sudo chown $(id -u):$(id -g) $HOME/.kube/config
+          if [[ $(kubectl describe node -A | grep node-role.kubernetes.io/control-plane:) != "" ]]; then
+            kubectl taint nodes --all node-role.kubernetes.io/control-plane-
+          fi
+          # The node-role.kubernetes.io/master taint is deprecated and kubeadm will stop using it in version 1.25
+          if [[ $(kubectl describe node -A | grep node-role.kubernetes.io/master:) != "" ]];then
+            kubectl taint nodes --all node-role.kubernetes.io/master-
+          fi
+
+      - name: Install calico network
+        run: |
+          set -x
+          kubectl apply -f https://projectcalico.docs.tigera.io/manifests/calico.yaml
 
       - name: Install Knative Serving and net-kourier
         run: |
@@ -132,8 +139,8 @@ jobs:
         run: |
           set -o pipefail
           ko apply -Rf config/
-          kubectl label nodes kind-worker knative.dev/container-runtime=containerd
-          kubectl rollout status daemonset/freeze-daemon-containerd -n knative-serving
+          kubectl label nodes --all knative.dev/container-runtime=crio
+          kubectl rollout status daemonset/freeze-daemon-crio -n knative-serving
 
       - name: Wait for Ready
         run: |
