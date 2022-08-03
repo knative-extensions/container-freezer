@@ -8,13 +8,13 @@ require (
 	github.com/kelseyhightower/envconfig v1.4.0
 	go.uber.org/zap v1.19.1
 	google.golang.org/grpc v1.44.0
-	k8s.io/api v0.23.8
-	k8s.io/apimachinery v0.23.8
-	k8s.io/client-go v0.23.8
+	k8s.io/api v0.23.9
+	k8s.io/apimachinery v0.23.9
+	k8s.io/client-go v0.23.9
 	k8s.io/cri-api v0.24.2
 	knative.dev/hack v0.0.0-20220728013938-9dabf7cf62e3
-	knative.dev/pkg v0.0.0-20220728013737-449f7e6dab63
-	knative.dev/serving v0.33.1-0.20220728013938-d0887e7c3a99
+	knative.dev/pkg v0.0.0-20220802185824-a01dfedb0486
+	knative.dev/serving v0.33.1-0.20220802192423-782df98689d3
 )
 
 require (
@@ -90,8 +90,8 @@ require (
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	gotest.tools/v3 v3.1.0 // indirect
-	k8s.io/apiextensions-apiserver v0.23.8 // indirect
-	k8s.io/klog/v2 v2.60.1-0.20220317184644-43cc75f9ae89 // indirect
+	k8s.io/apiextensions-apiserver v0.23.9 // indirect
+	k8s.io/klog/v2 v2.70.2-0.20220707122935-0990e81f1a8f // indirect
 	k8s.io/kube-openapi v0.0.0-20220124234850-424119656bbf // indirect
 	k8s.io/utils v0.0.0-20220210201930-3a6ce19ff2f9 // indirect
 	knative.dev/networking v0.0.0-20220723000421-cddb0ff95789 // indirect
