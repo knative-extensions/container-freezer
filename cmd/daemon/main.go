@@ -19,8 +19,6 @@ import (
 	pkglogging "knative.dev/pkg/logging"
 )
 
-const runtimeTypeContainerd string = "containerd"
-
 type config struct {
 	RuntimeType string `split_words:"true" required:"true"`
 
