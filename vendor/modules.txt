@@ -781,7 +781,7 @@ k8s.io/utils/net
 k8s.io/utils/pointer
 k8s.io/utils/strings/slices
 k8s.io/utils/trace
-# knative.dev/hack v0.0.0-20221003111221-b3c97904d3b5
+# knative.dev/hack v0.0.0-20221004153928-92a65f105c37
 ## explicit; go 1.18
 knative.dev/hack
 # knative.dev/networking v0.0.0-20220929142717-ce2a848e6ea9
@@ -792,7 +792,7 @@ knative.dev/networking/pkg/client/clientset/versioned
 knative.dev/networking/pkg/client/clientset/versioned/scheme
 knative.dev/networking/pkg/client/clientset/versioned/typed/networking/v1alpha1
 knative.dev/networking/pkg/config
-# knative.dev/pkg v0.0.0-20220930124718-7c4fef1af593
+# knative.dev/pkg v0.0.0-20221003153827-158538cc46ec
 ## explicit; go 1.18
 knative.dev/pkg/apis
 knative.dev/pkg/apis/duck
@@ -829,7 +829,7 @@ knative.dev/pkg/tracing/config
 knative.dev/pkg/tracing/propagation
 knative.dev/pkg/tracing/propagation/tracecontextb3
 knative.dev/pkg/tracker
-# knative.dev/serving v0.34.1-0.20221003140921-183bea1d94d8
+# knative.dev/serving v0.34.1-0.20221003153627-4229a180f04d
 ## explicit; go 1.18
 knative.dev/serving/pkg/apis/autoscaling
 knative.dev/serving/pkg/apis/autoscaling/v1alpha1
