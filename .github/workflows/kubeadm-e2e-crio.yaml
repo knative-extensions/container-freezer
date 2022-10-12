@@ -24,6 +24,7 @@ jobs:
         k8s-version:
           - 1.23.6
           - 1.24.2
+          - 1.25.2
 
     env:
       GOPATH: ${{ github.workspace }}
