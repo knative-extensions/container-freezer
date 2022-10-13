@@ -55,3 +55,4 @@ kubectl patch configmap/config-deployment -n knative-serving --type merge -p '{"
 
 See the [sleeptalker](./test/test_images/sleeptalker/main.go) application.
 
+test
