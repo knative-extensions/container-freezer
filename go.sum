@@ -1889,8 +1889,8 @@ knative.dev/networking v0.0.0-20221007151732-fcbfa31ac035 h1:OOw/KMAKITv3godQbwz
 knative.dev/networking v0.0.0-20221007151732-fcbfa31ac035/go.mod h1:ySkvDWiPZ0QD6H5GlYxOgUI782Fv2vLkyQRXCr4wkrQ=
 knative.dev/pkg v0.0.0-20221011175852-714b7630a836 h1:0N7Zo/O+xeUUebJPm9keBaGclrUoEbljr3J1MsqtaIM=
 knative.dev/pkg v0.0.0-20221011175852-714b7630a836/go.mod h1:DMTRDJ5WRxf/DrlOPzohzfhSuJggscLZ8EavOq9O/x8=
-knative.dev/serving v0.34.1-0.20221011230550-3ac6d4a5e660 h1:u5tr7GoTcKoUIggGZn5WQHYTJVlPhUPagIvoGc87/5Q=
-knative.dev/serving v0.34.1-0.20221011230550-3ac6d4a5e660/go.mod h1:t3mvgJKWSOcwiVkPpzpJnWErTwMhgSpab4w9hDCqnCg=
+knative.dev/serving v0.34.1-0.20221013210953-2220d0c22b45 h1:ZvBjScOgto1fwOPe7xC/Fd4AoalqjD/jdoyfwiQRgSU=
+knative.dev/serving v0.34.1-0.20221013210953-2220d0c22b45/go.mod h1:AUVQ1mC/BX8Qeavsgr2Jc7VQZsJUcxpkrdCscWhW43E=
 mvdan.cc/gofumpt v0.1.1/go.mod h1:yXG1r1WqZVKWbVRtBWKWX9+CxGYfA51nSomhM0woR48=
 mvdan.cc/interfacer v0.0.0-20180901003855-c20040233aed/go.mod h1:Xkxe497xwlCKkIaQYRfC7CSLworTXY9RMqwhhCm+8Nc=
 mvdan.cc/lint v0.0.0-20170908181259-adc824a0674b/go.mod h1:2odslEg/xrtNQqCYg2/jCoyKnw3vv5biOc3JnIcYfL4=
