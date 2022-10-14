@@ -27,12 +27,14 @@
 
 source $(dirname $0)/../e2e-common.sh
 
+export TIMEOUT=300
+
+###############################################################################################
+header "Running performance test"
 # Skip installing istio as an add-on.
 # Temporarily increasing the cluster size for serving tests to rule out
 # resource/eviction as causes of flakiness.
-initialize --min-nodes=2 --max-nodes=2 --cluster-version=1.23 "$@"
-
-header "Running performance test"
+initialize --skip-istio-addon --min-nodes=2 --max-nodes=2 --cluster-version=1.23 "$@"
 
 function run_hey() {
   run_go_tool github.com/rakyll/hey hey "$@"
@@ -55,11 +57,28 @@ function get_ksvc_url() {
   kubectl get ksvc -oyaml | grep url | awk '{split($0, url, "//");  print url[2]}' | tail -n 1
 }
 
+function wait_gateway_ip_ok() {
+  end_time=$((SECONDS+TIMEOUT))
+  while [ $SECONDS -lt $end_time ];do
+    gateway_ip=$(get_gateway_ip)
+    if [[ ${gateway_ip} != "" ]];then
+      break
+    fi
+    sleep 1
+  done
+}
+
+###############################################################################################
+header "Wait test env ready"
 mkdir -p "${ARTIFACTS}/hey"
 
 setup_ingress_env_vars
+wait_gateway_ip_ok
+
+kubectl get pods -A
 kubectl get svc -A
 
+###############################################################################################
 header "Running latency test when there is not container-freezer"
 operate_ksvc service create nginx --image=nginx --port=80 --scale-max=1 --scale-min=1 --concurrency-limit=100 || \
   fail_test "deploy ksvc failed"
@@ -71,6 +90,7 @@ run_hey -n 30 -c 1 -host "$(get_ksvc_url)" \
 operate_ksvc service delete nginx || \
   fail_test "delete ksvc failed"
 
+###############################################################################################
 header "Running latency test when container-freezer is deployed"
 deploy_container_freezer apply -Rf $(dirname $0)/../../config || \
   fail_test "deploy container-freezer failed"
