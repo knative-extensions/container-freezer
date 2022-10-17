@@ -178,7 +178,7 @@ func requestService(ctx context.Context, clients *test.Clients) error {
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("response code is:%d", resp.StatusCode)
+		return fmt.Errorf("response code is:%d, request url:%s, requrst host:%s", resp.StatusCode, reqUrl, ksvcUrl)
 	}
 
 	return nil
