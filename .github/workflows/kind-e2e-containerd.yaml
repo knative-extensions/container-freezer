@@ -126,6 +126,7 @@ jobs:
             --namespace knative-serving \
             --type merge \
             --patch '{"data":{"ingress-class":"kourier.ingress.networking.knative.dev"}}'
+          kubectl patch cm config-domain -nknative-serving -p '{"data":{"example.com":""}}'
 
       - name: Install container-freezer
         run: |
