@@ -14,7 +14,7 @@ require (
 	k8s.io/cri-api v0.24.2
 	knative.dev/hack v0.0.0-20230113013652-c7cfcb062de9
 	knative.dev/pkg v0.0.0-20230117181655-247510c00e9d
-	knative.dev/serving v0.35.1-0.20230119001800-6b7e09ac25e8
+	knative.dev/serving v0.35.1-0.20230122154403-550a6f5cc2d6
 )
 
 require (
