@@ -13,6 +13,7 @@ defaults:
 env:
   GOTESTSUM_VERSION: 1.7.0
   CRIO_VERSION: 1.25.1
+  CALICO_VERSION: 3.25.0
 
 jobs:
   e2e-tests:
@@ -121,7 +122,9 @@ jobs:
       - name: Install calico network
         run: |
           set -x
-          kubectl apply -f https://projectcalico.docs.tigera.io/manifests/calico.yaml
+          kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v${CALICO_VERSION}/manifests/tigera-operator.yaml
+          kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v${CALICO_VERSION}/manifests/custom-resources.yaml
+
 
       - name: Install Knative Serving and net-kourier
         run: |
