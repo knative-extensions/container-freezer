@@ -122,7 +122,7 @@ jobs:
       - name: Install calico network
         run: |
           set -x
-          kubectl apply -f https://raw.githubusercontent.com/projectcalico/calico/v{CALICO_VERSION}/manifests/calico.yaml
+          kubectl apply -f https://raw.githubusercontent.com/projectcalico/calico/v${CALICO_VERSION}/manifests/calico.yaml
 
       - name: Install Knative Serving and net-kourier
         run: |
