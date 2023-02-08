@@ -122,9 +122,7 @@ jobs:
       - name: Install calico network
         run: |
           set -x
-          kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v${CALICO_VERSION}/manifests/tigera-operator.yaml
-          kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v${CALICO_VERSION}/manifests/custom-resources.yaml
-
+          kubectl apply -f https://raw.githubusercontent.com/projectcalico/calico/v{CALICO_VERSION}/manifests/calico.yaml
 
       - name: Install Knative Serving and net-kourier
         run: |
