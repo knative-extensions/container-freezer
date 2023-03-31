@@ -1,9 +1,10 @@
-# container-freezer
+**NOTE: The container freezer functionality was removed from Knative Serving in v1.10, and this repo was archived in April 2023.**
 
+# container-freezer
 
 | STATUS | Sponsoring WG |
 | --- | --- |
-| Alpha | [Serving](https://github.com/knative/community/blob/main/working-groups/WORKING-GROUPS.md#serving)|
+| Deprecated | [Serving](https://github.com/knative/community/blob/main/working-groups/WORKING-GROUPS.md#serving)|
 
 A standalone service for Knative to pause/unpause containers when request count drops to zero.
 
